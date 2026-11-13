@@ -1,0 +1,34 @@
+# ---- 环境与第三方（不版本化）----
+.venv/
+yolo-lib/
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+pip-tmp/
+.ignore
+
+# ---- 模型权重 ----
+*.pt
+*.pth
+*.onnx
+relabel/weights/
+relabel/cfg/
+
+# ---- 数据本体：体积大，单独存放，不进 git ----
+bike_dataset/
+dataset_v2/
+dataset_school/
+relabel/auto/
+
+# ---- 训练/推理产物（可重新生成）----
+runs/
+violation_*/
+school_infer/
+*.egg-info/
+
+# ---- 报告中体积大的可视化 ----
+relabel/report/review_sheets/
+relabel/report/compare_random/
+relabel/report/school_preview/
+review.html

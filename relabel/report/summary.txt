@@ -1,0 +1,42 @@
+图片总数: 553   原标注框: 2156   自动标注框: 2548
+
+原框判定:  好 40 (1.9%)   偏松 272 (12.6%)   画错对象 1844 (85.5%)
+自动框在原标注里找不到: 2322
+
+完全无需复核的图:        23 (4%)
+小改即可(无画错、漏标<=1): 63 (11%)
+有画错对象的图:          483 (87%)
+
+重复图片: 95 组, 涉及 495 张 (MD5 完全相同)
+  train/image_000005 == train/image_000023 == train/image_000036 == train/image_000040 == train/image_000134 == train/image_000140 == train/image_000168 == train/image_000313 == val/image_000063 == val/image_001112 == val/image_005357
+  train/image_000103 == train/image_000165 == train/image_000195 == train/image_000219 == train/image_000243 == train/image_005287 == train/image_005306 == val/image_000154 == val/image_000207 == val/image_000208 == val/image_005330
+  train/image_000121 == train/image_000206 == train/image_000407 == train/image_005290 == val/image_002838
+  train/image_000210 == train/image_001460
+  train/image_000211 == train/image_000267 == train/image_000282 == train/image_000286 == train/image_000324 == train/image_000327 == train/image_000339 == train/image_000358 == train/image_000375 == train/image_000395 == train/image_000417 == train/image_003163 == train/image_003313 == train/image_005318 == val/image_000273 == val/image_005346 == val/image_006197
+
+最需要复核的 25 张:
+  val/image_000230   原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000232 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000239 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000268 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000304 原15 自动22 | 好 0 松 0 错15 漏22
+  val/image_000318   原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000402 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_005321 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_005323 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_005333 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_005356 原15 自动22 | 好 0 松 0 错15 漏22
+  train/image_000215 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000226 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000236 原14 自动19 | 好 0 松 0 错14 漏19
+  val/image_000263   原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000298 原14 自动19 | 好 0 松 0 错14 漏19
+  val/image_000321   原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000330 原14 自动19 | 好 0 松 0 错14 漏19
+  val/image_000334   原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000352 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000400 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000415 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_005365 原14 自动19 | 好 0 松 0 错14 漏19
+  train/image_000211 原14 自动21 | 好 0 松 3 错11 漏19
+  train/image_000267 原14 自动21 | 好 0 松 3 错11 漏19
