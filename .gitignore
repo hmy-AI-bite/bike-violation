@@ -15,20 +15,44 @@ pip-tmp/
 relabel/weights/
 relabel/cfg/
 
-# ---- 数据本体：体积大，单独存放，不进 git ----
+# ---- 数据本体：一律不进 git ----
 bike_dataset/
 dataset_v2/
 dataset_school/
+dataset*/
 relabel/auto/
+images/
+labels/
+data/
 
-# ---- 训练/推理产物（可重新生成）----
+# ---- 训练 / 推理产物（可重新生成）----
 runs/
 violation_*/
 school_infer/
+review.html
 *.egg-info/
 
-# ---- 报告中体积大的可视化 ----
-relabel/report/review_sheets/
-relabel/report/compare_random/
-relabel/report/school_preview/
-review.html
+# ---- 媒体与大文件：默认全部忽略 ----
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.webp
+*.tif
+*.tiff
+*.gif
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.zip
+*.tar
+*.gz
+*.7z
+*.npy
+*.npz
+
+# ---- 例外：仅 docs/images 下的界面截图进 git ----
+!docs/images/
+!docs/images/*.jpg
+!docs/images/*.png
