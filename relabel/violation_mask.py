@@ -30,6 +30,7 @@ CFG = "configs/sam2.1/sam2.1_hiera_t.yaml"
 GREEN = (0, 210, 90)
 YELLOW = (255, 190, 0)
 RED = (255, 45, 45)
+GRAY = (150, 150, 150)
 
 
 def rasterize(poly, W, H):
@@ -61,12 +62,11 @@ def main():
     from sam2.sam2_image_predictor import SAM2ImagePredictor
     from ultralytics import YOLO
 
-    scenes = json.load(open(args.scenes, encoding="utf-8"))
-    sc = scenes.get(args.scene, {})
-    allow = sc.get("allow")
-    deny = sc.get("deny") or []
-    if not allow:
-        raise SystemExit("场景里没有 allow 区域: %s" % args.scene)
+    scenes = json.load(open(args.scenes, encoding="utf-8-sig"))
+    sc = scenes.get(args.scene)
+    if sc is None:
+        raise SystemExit("scenes.json 里没有场景 %r，现有场景: %s" %
+                         (args.scene, ", ".join(scenes) or "(空)"))
 
     yolo = YOLO(args.weights)
     sam = build_sam2(CFG, CKPT, device="cuda")
@@ -89,12 +89,23 @@ def main():
 
     for path in files:
         stem = os.path.splitext(os.path.basename(path))[0]
+        # 优先用该图自己的区域，没有才回落到场景默认
+        per_img = (sc.get("images") or {}).get(stem) or {}
+        allow = per_img.get("allow") or sc.get("allow")
+        deny = per_img.get("deny") or sc.get("deny") or []
+        if not allow:
+            # 没标定区域：只检测、不判定（原始新图走这条路径）
+            has_zone = False
+            allow, deny = [], []
+        else:
+            has_zone = True
+
         im = Image.open(path).convert("RGB")
         im.thumbnail((args.max_side, args.max_side * 2))
         W, H = im.size
         arr = np.array(im)
 
-        allow_r = rasterize(allow, W, H)
+        allow_r = rasterize(allow, W, H) if has_zone else np.zeros((H, W), dtype=bool)
         deny_r = np.zeros_like(allow_r)
         for poly in deny:
             deny_r |= rasterize(poly, W, H)
@@ -105,13 +116,13 @@ def main():
         pred.set_image(arr)
 
         canvas = im.copy()
-        px = canvas.load()
         d = ImageDraw.Draw(canvas)
-        d.line([(x * W, y * H) for x, y in allow] +
-               [(allow[0][0] * W, allow[0][1] * H)], fill=(80, 160, 255), width=6)
-        for poly in deny:
-            d.line([(x * W, y * H) for x, y in poly] +
-                   [(poly[0][0] * W, poly[0][1] * H)], fill=(255, 140, 0), width=5)
+        if has_zone:
+            d.line([(x * W, y * H) for x, y in allow] +
+                   [(allow[0][0] * W, allow[0][1] * H)], fill=(80, 160, 255), width=6)
+            for poly in deny:
+                d.line([(x * W, y * H) for x, y in poly] +
+                       [(poly[0][0] * W, poly[0][1] * H)], fill=(255, 140, 0), width=5)
 
         n_bad = 0
         for bi, b in enumerate(boxes, 1):
@@ -123,32 +134,39 @@ def main():
             if m.sum() < 200:
                 continue
 
-            # 接地点：掩膜最低 2% 高度的那一条
-            ys, xs = np.where(m)
-            y_max = ys.max()
-            band = max(2, int(0.02 * H))
-            contact = m & (np.arange(H)[:, None] >= y_max - band + 1)
-            c_frac = (contact & allow_r).sum() / max(1, contact.sum())
-            d_frac = (m & deny_r).sum() / max(1, m.sum())
-
-            if d_frac > args.deny_tol:
-                verdict, color = "占道", RED
-            elif c_frac >= 0.9:
-                verdict, color = "合规", GREEN
-            elif c_frac > 0.1:
-                verdict, color = "压线", YELLOW
+            if not has_zone:
+                verdict, color = "未标定", GRAY
+                c_frac = d_frac = box_out = -1.0
+                contact = np.zeros_like(m)
+                ys, xs = np.where(m)
             else:
-                verdict, color = "出界", RED
-            stat[verdict] += 1
+                # 接地点：掩膜最低 2% 高度的那一条
+                ys, xs = np.where(m)
+                y_max = ys.max()
+                band = max(2, int(0.02 * H))
+                contact = m & (np.arange(H)[:, None] >= y_max - band + 1)
+                c_frac = (contact & allow_r).sum() / max(1, contact.sum())
+                d_frac = (m & deny_r).sum() / max(1, m.sum())
 
-            # 框规则对照：车身在区外的比例
-            bm = np.zeros_like(allow_r)
-            x1, y1, x2, y2 = [int(v) for v in b]
-            bm[max(0, y1):min(H, y2), max(0, x1):min(W, x2)] = True
-            box_out = 1 - (bm & allow_r).sum() / max(1, bm.sum())
-            box_bad = box_out > args.box_tol
-            box_bad_total += int(box_bad)
-            mask_bad_total += int(verdict != "合规")
+                if d_frac > args.deny_tol:
+                    verdict, color = "占道", RED
+                elif c_frac >= 0.9:
+                    verdict, color = "合规", GREEN
+                elif c_frac > 0.1:
+                    verdict, color = "压线", YELLOW
+                else:
+                    verdict, color = "出界", RED
+            stat[verdict] = stat.get(verdict, 0) + 1
+
+            if has_zone:
+                # 框规则对照：车身在区外的比例
+                bm = np.zeros_like(allow_r)
+                x1, y1, x2, y2 = [int(v) for v in b]
+                bm[max(0, y1):min(H, y2), max(0, x1):min(W, x2)] = True
+                box_out = 1 - (bm & allow_r).sum() / max(1, bm.sum())
+                box_bad = box_out > args.box_tol
+                box_bad_total += int(box_bad)
+                mask_bad_total += int(verdict != "合规")
 
             # 画轮廓
             c = contour(m)
@@ -157,21 +175,28 @@ def main():
                              canvas_arr[c].astype(np.float32) * 0.15)
             canvas = Image.fromarray(canvas_arr)
 
+            box_rule = ("—" if not has_zone
+                        else ("违停" if box_bad else "合规"))
             rows.append(dict(image=stem, bike=bi, verdict=verdict,
                              contact_in=round(float(c_frac), 3),
                              deny=round(float(d_frac), 3),
                              box_out=round(float(box_out), 3),
-                             box_rule="违停" if box_bad else "合规",
+                             box_rule=box_rule,
                              score=round(float(scores[0]), 3)))
-            if verdict != "合规":
+            if has_zone and verdict != "合规":
                 n_bad += 1
 
         d = ImageDraw.Draw(canvas)
-        d.rectangle([0, 0, 640, 48], fill=(0, 0, 0))
-        d.text((10, 6), "违停 %d / 共 %d（掩膜判定）" % (n_bad, len(boxes)),
-               fill=(255, 60, 60) if n_bad else (0, 220, 90), font=font)
+        d.rectangle([0, 0, 700, 48], fill=(0, 0, 0))
+        if has_zone:
+            d.text((10, 6), "违停 %d / 共 %d（掩膜判定）" % (n_bad, len(boxes)),
+                   fill=(255, 60, 60) if n_bad else (0, 220, 90), font=font)
+            print("%-28s 合规 %2d  违停 %2d" % (stem, len(boxes) - n_bad, n_bad), flush=True)
+        else:
+            d.text((10, 6), "未标定区域 · 仅检测 %d 辆（不判定）" % len(boxes),
+                   fill=(180, 180, 180), font=font)
+            print("%-28s 未标定，仅检测 %2d 辆" % (stem, len(boxes)), flush=True)
         canvas.save(os.path.join(args.out, os.path.basename(path)), quality=90)
-        print("%-28s 合规 %2d  违停 %2d" % (stem, len(boxes) - n_bad, n_bad), flush=True)
 
     if rows:
         with open(os.path.join(args.out, "per_bike.csv"), "w",

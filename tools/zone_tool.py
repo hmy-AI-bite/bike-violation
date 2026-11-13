@@ -69,7 +69,7 @@ class Canvas(QWidget):
         p.drawPixmap(int(ox), int(oy), int(self.pix.width() * s), int(self.pix.height() * s), self.pix)
 
         W, H = self.pix.width(), self.pix.height()
-        doc = self.win.current
+        doc = self.win.doc()
 
         def poly(pts, color, width=3):
             if len(pts) < 2:
@@ -144,7 +144,6 @@ class Main(QMainWindow):
                 self.scenes = {}
         self.scenes.setdefault(scene, {"allow": [], "deny": []})
         self.current = self.scenes[scene]
-
         self.canvas = Canvas(self)
         bar = QHBoxLayout()
         self.lbl = QLabel("—")
@@ -175,10 +174,19 @@ class Main(QMainWindow):
         QShortcut(QKeySequence("C"), self, self.clear)
         QShortcut(QKeySequence("Backspace"), self, self.undo_point)
         QShortcut(QKeySequence("Escape"), self, self.cancel)
+        QShortcut(QKeySequence("P"), self, self.promote)
 
         if self.files:
             self.load(0)
         self.canvas.setFocus()
+
+    def doc(self):
+        """当前图片自己的区域（按图存储，避免一张多边形套所有视角）。"""
+        if not self.files:
+            return self.scenes[self.scene]
+        stem = os.path.splitext(self.files[self.idx])[0]
+        return self.scenes[self.scene].setdefault("images", {}).setdefault(
+            stem, {"allow": [], "deny": []})
 
     def load(self, i):
         self.idx = max(0, min(len(self.files) - 1, i))
@@ -186,7 +194,7 @@ class Main(QMainWindow):
         self.update_lbl()
 
     def update_lbl(self):
-        d = self.current
+        d = self.doc()
         self.lbl.setText("%s（%d/%d）  允许区 %d 点  禁停区 %d 块  模式:%s" %
                          (self.files[self.idx], self.idx + 1, len(self.files),
                           len(d.get("allow", [])), len(d.get("deny", [])), self.mode))
@@ -196,9 +204,9 @@ class Main(QMainWindow):
             self.statusBar().showMessage("至少 3 个点", 2000)
             return
         if self.mode == "allow":
-            self.current["allow"] = self.canvas.pending[:]
+            self.doc()["allow"] = self.canvas.pending[:]
         else:
-            self.current.setdefault("deny", []).append(self.canvas.pending[:])
+            self.doc().setdefault("deny", []).append(self.canvas.pending[:])
         self.canvas.pending = []
         self.update_lbl()
         self.canvas.update()
@@ -220,13 +228,21 @@ class Main(QMainWindow):
         self.canvas.update()
 
     def clear(self):
+        d = self.doc()
         if self.mode == "allow":
-            self.current["allow"] = []
+            d["allow"] = []
         else:
-            self.current["deny"] = []
+            d["deny"] = []
         self.canvas.pending = []
         self.update_lbl()
         self.canvas.update()
+
+    def promote(self):
+        """把当前图的区域设为该场景的默认区域（固定机位用）。"""
+        d = self.doc()
+        self.scenes[self.scene]["allow"] = [list(p) for p in d.get("allow", [])]
+        self.scenes[self.scene]["deny"] = [[list(q) for q in poly] for poly in d.get("deny", [])]
+        self.statusBar().showMessage("已设为场景默认区域（%d 点）" % len(d.get("allow", [])), 3000)
 
     def save(self):
         os.makedirs(os.path.dirname(os.path.abspath(self.scenes_path)), exist_ok=True)
