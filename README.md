@@ -1,85 +1,152 @@
 # 校园自行车违停检测
 
-用预训练模型 + 几何判定，识别「停在划线外 / 停在通道上 / 车头压线」的自行车。
-先做图片，后续接视频监控。
+用「预训练检测 + SAM2 掩膜 + 地面几何」三条腿，判断自行车是否停在划线外、通道上或车头压线。
+当前阶段做图片，路线图下一步接视频监控。
 
-## 结论先行
+> 核心观点：**"越界"不需要模型去学，它是一个几何问题。**
+> 模型只负责"找出车"，是否越界由车与标定区域的关系决定。
 
-- **越界判定不需要模型学**：区域由人标定，模型只负责找车，是否越界是几何问题。
-- **框不够精确**：框是轴对齐矩形，斜靠的车会把背景算进去。改用 SAM2 掩膜后，误报从 72 辆降到 32 辆（-56%）。
-- **区域是唯一的短板**：多角度、多场地必须每处标定一次，或训练区域分割模型。
+## 问题定义
 
-## 目录
-
-```
-bike_dataset/        原始 553 张 + YOLO 标注（标注质量差，仅作原始存档）
-dataset_v2/          去重后的 153 张唯一图片 + 人工精修后的标注
-dataset_school/      学校实拍 17 张（3072x4096）+ 停车区多边形
-relabel/             重标、对比、训练、判定脚本
-tools/               标注工具（精修 / 区域标定）
-runs/                训练输出
-violation_mask_out/  掩膜版判定的结果样例
-```
-
-## 界面
-
-精修标注（`tools/labeler.py`）：
-
-![精修标注](docs/images/labeler.jpg)
-
-停车区标定（`tools/zone_tool.py`）：
-
-![区域标定](docs/images/zone_tool.jpg)
-
-## 脚本
-
-| 脚本 | 作用 |
+| 违停类型 | 判定方式 |
 |---|---|
-| `tools/labeler.py` | 精修自行车框：点选、拖动、画框、删除、自动保存 |
-| `tools/zone_tool.py` | 标定停车区：点几下圈出允许区/禁停区，存 `scenes.json` |
-| `relabel/autolabel.py` | 用 yolo11x 自动标注，可同时出带框图 |
-| `relabel/compare.py` | 新旧标注对比，输出可疑清单 |
-| `relabel/build_v2.py` | 按哈希去重 + 重新划分数据集 |
-| `relabel/train.py` | 微调（小数据集必须降 lr0，否则会发散） |
-| `relabel/preview.py` | 批量生成带框图 + 本地翻页查看器 |
-| `relabel/violation.py` | 框规则越界判定（快速基线） |
-| `relabel/violation_mask.py` | 掩膜规则判定：接地点 + 压线 + 占道 |
+| 停在划线外 | 车身接地点落在允许停放区外 |
+| 停在通道上 | 车身与禁停区（通道多边形）重叠 > 阈值 |
+| 车头压线 | 接地点有 10%~90% 跨过边界线 |
 
-## 运行环境
+## 系统架构
 
-复用本机 conda `sam2` 环境（torch 2.11 + CUDA 12.8），ultralytics 及其依赖装在
-`yolo-lib/`（不进 git），通过 `PYTHONPATH` 叠加，不改动 conda 环境本身：
+```
+                    ┌─────────────────────────────────────────┐
+   输入              │           判定流水线（每张图）            │
+┌──────────┐         │                                         │
+│ 图片/视频帧│───────▶│ ① YOLO11 检测 bicycles (COCO→微调)       │
+└──────────┘         │        ↓ 21 个框 / 48 ms                │
+                     │ ② SAM2 掩膜（框提示，逐辆出轮廓）         │
+┌──────────┐         │        ↓ 9 ms/辆 + 84 ms 编码            │
+│场景区域配置│────────▶│ ③ 接地点提取（掩膜最低 2% 条带）          │
+│scenes.json│        │        ↓                                │
+└──────────┘         │ ④ 几何判定 allow / deny → 合规·压线·出界·占道│
+                     │        ↓                                │
+                     │ ⑤ 输出：标注图 + per_bike.csv            │
+                     └─────────────────────────────────────────┘
+```
+
+### 模块职责
+
+| 模块 | 文件 | 职责 |
+|---|---|---|
+| 区域标定 | `tools/zone_tool.py` | 点选生成 `scenes.json`（allow + deny 多边形） |
+| 检测 | `relabel/autolabel.py` | YOLO11 推理，产出 YOLO 格式 txt |
+| 掩膜 | `relabel/sam_demo.py` | YOLO 框 → SAM2 掩膜（无损轮廓） |
+| 判定（框） | `relabel/violation.py` | 快速基线：框面积 ∩ 区域 |
+| 判定（掩膜） | `relabel/violation_mask.py` | 正式方案：接地点 + 压线 + 占道 |
+| 标注精修 | `tools/labeler.py` | 点选/拖动/删除/自动保存，带置信度上色 |
+| 数据治理 | `relabel/build_v2.py`、`compare.py` | 去重、查泄漏、新旧标注对比 |
+
+## 当前进展
+
+**数据**
+
+| 数据集 | 规模 | 状态 |
+|---|---|---|
+| `bike_dataset` | 553 个文件 → **仅 153 张唯一图** | 原标注 85.5% 与车不重叠，废弃 |
+| `dataset_v2` | 153 张（112 train / 41 val） | yolo11x 重标 + 人工精修，393 → **335 框** |
+| `dataset_school` | 17 张 3072×4096 | 147 个自行车框 + 17 个停车区多边形 |
+
+发现的问题：495 个重复文件（最多一张复制 20 份）、54 组同时跨 train/val（数据泄漏）。
+
+**训练**
+
+- `yolo11s` 微调（学校 17 张，14/3 划分）：bicycle **mAP50 0.762**，`parking_area` 无样本，mAP 0。
+- 踩坑记录：小数据集 `lr0` 必须降到 0.002（默认 0.01 会在第 30 轮 mAP 崩到 0）；关 AMP 会慢 10 倍。
+
+**判定对比（同一批 17 张、同一套区域）**
+
+| 规则 | 判违停 | 说明 |
+|---|---|---|
+| 框规则 | 72 辆 | 框含背景，斜靠车误报多 |
+| 掩膜规则 | **32 辆** | 只看接地点，误报 -56% |
+
+**性能**
+
+| 环节 | 耗时 |
+|---|---|
+| YOLO 检测 | 48 ms |
+| SAM2 编码 | 84 ms |
+| SAM2 逐辆 | 9 ms/辆（21 辆 = 193 ms） |
+| 全量 | 325 ms ≈ 3.1 fps |
+| 只对区外目标跑 SAM | 150 ms ≈ 6.6 fps |
+
+## 快速开始
+
+环境复用本机 conda `sam2`（torch 2.11 + CUDA 12.8），ultralytics 及依赖装在 `yolo-lib/`，通过
+`PYTHONPATH` 叠加，不改动 conda 环境：
 
 ```bat
 set PYTHONPATH=D:\bick\yolo-lib
 set YOLO_CONFIG_DIR=D:\bick\relabel\cfg
-```
 
-## 典型流程
+:: 1) 标定停车区（点选 → Enter 闭合 → S 保存）
+python tools\zone_tool.py "J:\...\images" dataset_school\scenes.json school_row
 
-```bat
-:: 1) 标定停车区（点几下，S 保存）
-python tools\zone_tool.py "J:\project-1-at-2026-11-13-17-44-a1d4a70f\images" dataset_school\scenes.json school_row
-
-:: 2) 掩膜版违停判定
+:: 2) 掩膜判定
 python relabel\violation_mask.py --source "J:\...\images" --scenes dataset_school\scenes.json --scene school_row
 
-:: 3) 精修标注（可选）
+:: 3) 精修标注
 python tools\labeler.py dataset_v2
 
 :: 4) 训练
 python relabel\train.py --data dataset_v2\data.yaml --imgsz 960 --epochs 120 --lr0 0.002
 ```
 
-## 已知问题
+## 目录结构
 
-- 标注口径要统一：一辆完整车一个框，遮挡超过 70% 可不标，摩托车不算自行车。
-- 负样本不足：海报/屏幕里的自行车、地面影子需要单独收集，标为空 txt。
-- `violation_mask.py` 的 `scenes.json` 目前是拿一排车的外接四边形，不是地面划线；
-  上线前要改成划线内侧，否则正常停放也会报「压线」。
+```
+bike_dataset/        原始 553 张（含重复）与旧标注，仅存档
+dataset_v2/          去重 + 人工精修后的训练集
+dataset_school/      学校实拍 17 张 + 停车区多边形
+relabel/             重标 / 对比 / 训练 / 判定脚本
+tools/               标注与标定 GUI
+docs/images/         界面截图
+runs/                训练输出（不进 git）
+violation_mask_out/  判定结果样例（不进 git）
+```
 
-## 依赖
+## 未来期望
 
-- ultralytics 8.4（`yolo-lib/`）
-- SAM2.1 hiera-tiny（`D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt`）
-- 训练权重：`yolo11s.pt` / `yolo11x.pt`（`relabel/weights/`，不进 git）
+### P0 当前 · 单场地图片（已通）
+- 区域人工标定一次，判定流水线跑通
+- 掩膜判定准确率高于框规则，已量化
+
+### P1 多场地 · 可用性（1~2 周）
+- [ ] 批量标定多个停放点，`scenes.json` 支持分场景索引
+- [ ] 采集 30~50 张真实违停样本，产出**误报率 / 召回率**基线
+- [ ] 负样本库：海报/屏幕里的自行车、地面影子，标为空 txt
+- [ ] 把 allow 区域统一改为**地面划线内侧**，消除端头误报
+
+### P2 区域自动识别（1~2 月）
+- [ ] 用 SAM2 掩膜自动生成多边形标注，积累 200~500 张
+- [ ] 训练 `yolo11-seg` 双类模型（bicycle / parking_area），去掉人工标定
+- [ ] 目标：任意角度、任意场地，输入图片直接出判定
+
+### P3 视频监控（2~3 月）
+- [ ] 抽帧 + 多目标跟踪（ByteTrack），同一辆车跨帧只报一次
+- [ ] 停留时长过滤（停车 > N 秒才报警）
+- [ ] 报警输出：截图 + 时间戳 + 位置，推送到企业微信/钉钉
+
+### P4 部署与蒸馏（3~6 月）
+- [ ] SAM→seg 学生模型蒸馏，去掉 SAM 依赖，单模型 ~50 ms/帧
+- [ ] ONNX / TensorRT 导出，边缘盒子本地推理
+- [ ] 前端：区域配置 + 实时预览 + 报警列表
+
+## 已知限制
+
+1. **区域是唯一瓶颈**：模型无法从像素里"猜"出哪块地允许停车，多角度多场地必须标定或专门训练。
+2. **SAM2 会粘车**：重度重叠的两辆车可能被抠成一体，需要后处理拆分。
+3. **无违停正样本**：现有 17 张全是规范停放，召回率尚无数据支撑。
+4. **停车区类别学不会**：17 张里只有 14 个样本，2 类检测的 `parking_area` mAP 为 0。
+
+## 许可
+
+内部项目，未开源。
