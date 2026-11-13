@@ -21,6 +21,16 @@ runs/                训练输出
 violation_mask_out/  掩膜版判定的结果样例
 ```
 
+## 界面
+
+精修标注（`tools/labeler.py`）：
+
+![精修标注](docs/images/labeler.jpg)
+
+停车区标定（`tools/zone_tool.py`）：
+
+![区域标定](docs/images/zone_tool.jpg)
+
 ## 脚本
 
 | 脚本 | 作用 |
