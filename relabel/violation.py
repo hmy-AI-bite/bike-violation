@@ -20,8 +20,11 @@ import csv
 import json
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, r"D:\bick\yolo-lib")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "yolo-lib"))
+from violation_rules import bicycle_class_id, resolve_zones
 
 
 def point_in_poly(x, y, pts):
@@ -49,20 +52,20 @@ def ratio_in(box, poly, W, H, n=14):
 
 
 def load_scene(scenes, name, stem):
-    sc = scenes.get(name, {})
-    if "images" in sc and stem in sc["images"]:
-        return sc["images"][stem]
-    return sc
+    if name not in scenes:
+        raise ValueError("未找到场景 %r" % name)
+    allow, deny = resolve_zones(scenes[name], stem)
+    return {"allow": allow, "deny": deny}
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=r"D:\bick\yolo-lib")
-    ap.add_argument("--weights", default=r"D:\bick\relabel\weights\yolo11x.pt")
+    ap.add_argument("--lib", default=str(ROOT / "yolo-lib"))
+    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11x.pt"))
     ap.add_argument("--source", required=True)
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--scene", default="default")
-    ap.add_argument("--out", default=r"D:\bick\violation_v2")
+    ap.add_argument("--out", default=str(ROOT / "violation_v2"))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.35)
     ap.add_argument("--iou", type=float, default=0.45)
@@ -75,8 +78,10 @@ def main():
     from PIL import Image, ImageDraw, ImageFont
     from ultralytics import YOLO
 
-    scenes = json.load(open(args.scenes, encoding="utf-8"))
+    with open(args.scenes, encoding="utf-8-sig") as f:
+        scenes = json.load(f)
     model = YOLO(args.weights)
+    bike_class = bicycle_class_id(model.names)
     os.makedirs(args.out, exist_ok=True)
     try:
         font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 32)
@@ -98,8 +103,9 @@ def main():
             continue
 
         res = model.predict(path, imgsz=args.imgsz, conf=args.conf, iou=args.iou,
-                            classes=[1], device=args.device, verbose=False)[0]
-        im = Image.open(path).convert("RGB")
+                            classes=[bike_class], device=args.device, verbose=False)[0]
+        with Image.open(path) as image:
+            im = image.convert("RGB")
         W, H = im.size
         d = ImageDraw.Draw(im)
 

@@ -24,6 +24,7 @@ relabel/auto/
 images/
 labels/
 data/
+incoming/
 
 # ---- 训练 / 推理产物（可重新生成）----
 runs/

@@ -1,0 +1,283 @@
+{
+  "date": "2026-11-25",
+  "data": {
+    "count": 66,
+    "unique": 60,
+    "net_new_unique": 49,
+    "missing": [],
+    "size_mismatch": [],
+    "invalid": [],
+    "duplicate_groups": [
+      [
+        "点位A/角度_1/A_1_006.jpg",
+        "点位A/角度_1/A_1_013.jpg"
+      ],
+      [
+        "点位A/角度_1/A_1_007.jpg",
+        "点位A/角度_1/A_1_015.jpg"
+      ],
+      [
+        "点位A/角度_1/A_1_008.jpg",
+        "点位A/角度_1/A_1_014.jpg"
+      ],
+      [
+        "点位A/角度_1/A_1_009.jpg",
+        "点位A/角度_1/A_1_010.jpg",
+        "点位A/角度_1/A_1_016.jpg"
+      ],
+      [
+        "点位A/角度_1/A_1_011.jpg",
+        "点位A/角度_1/A_1_012.jpg"
+      ]
+    ],
+    "exact_matches_existing": [
+      {
+        "new": [
+          "点位A/角度_1/A_1_001.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/c4f86e23-A_001.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_002.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/feb3e917-A_002.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_003.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/21b29ab7-A_003.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_004.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/cb86a1a3-A_004.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_005.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/3e9612ab-A_005.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_006.jpg",
+          "点位A/角度_1/A_1_013.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/039f0796-A_013.jpg",
+          "dataset_school/images/val/9acffb68-A_006.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_007.jpg",
+          "点位A/角度_1/A_1_015.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/a2c9106e-A_015.jpg",
+          "dataset_school/images/train/c4e99376-A_007.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_008.jpg",
+          "点位A/角度_1/A_1_014.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/92f8ab5b-A_014.jpg",
+          "dataset_school/images/train/fec448e4-A_008.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_009.jpg",
+          "点位A/角度_1/A_1_010.jpg",
+          "点位A/角度_1/A_1_016.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/425ffa2f-A_009.jpg",
+          "dataset_school/images/val/42aa1344-A_010.jpg",
+          "dataset_school/images/val/f1ac407c-A_016.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_011.jpg",
+          "点位A/角度_1/A_1_012.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/59de30bb-A_011.jpg",
+          "dataset_school/images/train/70b1281f-A_012.jpg"
+        ]
+      },
+      {
+        "new": [
+          "点位A/角度_1/A_1_017.jpg"
+        ],
+        "existing": [
+          "dataset_school/images/train/5bd0ea40-A_017.jpg"
+        ]
+      }
+    ],
+    "annotation_files": []
+  },
+  "training": {
+    "initial_weights": "D:\\Bicycle\\relabel\\weights\\yolo11x.pt",
+    "training_dataset": "D:\\Bicycle\\dataset_v2\\data.yaml",
+    "incoming_test_data_used_for_training": false,
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "imgsz": 1280,
+    "batch": 4,
+    "peak_gpu_allocated_mib": 7286.94921875,
+    "peak_gpu_reserved_mib": 8034.0,
+    "best_weights": "D:\\Bicycle\\runs\\bike11x_v1\\weights\\best.pt",
+    "metrics": {
+      "metrics/precision(B)": 0.843561690345316,
+      "metrics/recall(B)": 0.8421052631578947,
+      "metrics/mAP50(B)": 0.871417108984547,
+      "metrics/mAP50-95(B)": 0.6892988501740934
+    }
+  },
+  "training_epochs": 13,
+  "best_epoch": 1,
+  "training_validation_split": {
+    "train_images": 112,
+    "val_images": 41,
+    "train_boxes": 259,
+    "val_boxes": 76
+  },
+  "comparison": [
+    {
+      "image": "A_1_038.jpg",
+      "model": "finetuned_x",
+      "candidates": 12,
+      "evaluated": 12,
+      "excluded": 0,
+      "counts": {
+        "合规": 10,
+        "压线": 1,
+        "出界": 1,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    },
+    {
+      "image": "A_1_038.jpg",
+      "model": "pretrained",
+      "candidates": 14,
+      "evaluated": 14,
+      "excluded": 0,
+      "counts": {
+        "合规": 9,
+        "压线": 2,
+        "出界": 3,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    },
+    {
+      "image": "A_2_007.jpg",
+      "model": "finetuned_x",
+      "candidates": 15,
+      "evaluated": 15,
+      "excluded": 0,
+      "counts": {
+        "合规": 11,
+        "压线": 2,
+        "出界": 2,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    },
+    {
+      "image": "A_2_007.jpg",
+      "model": "pretrained",
+      "candidates": 14,
+      "evaluated": 14,
+      "excluded": 0,
+      "counts": {
+        "合规": 11,
+        "压线": 2,
+        "出界": 1,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    },
+    {
+      "image": "A_3_008.jpg",
+      "model": "finetuned_x",
+      "candidates": 28,
+      "evaluated": 12,
+      "excluded": 16,
+      "counts": {
+        "合规": 12,
+        "压线": 0,
+        "出界": 0,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    },
+    {
+      "image": "A_3_008.jpg",
+      "model": "pretrained",
+      "candidates": 26,
+      "evaluated": 13,
+      "excluded": 13,
+      "counts": {
+        "合规": 13,
+        "压线": 0,
+        "出界": 0,
+        "占道": 0,
+        "无法判定": 0,
+        "未标定": 0
+      }
+    }
+  ],
+  "visual_review": {
+    "conclusion": "Finetuned YOLO11x avoids the severe under-detection seen in the old YOLO11s model on these three test scenes. No independent labels establish improvement over the pretrained YOLO11x.",
+    "A_1_038.jpg": "Finetuned 12 candidate boxes vs pretrained 14; several vehicles remain unseparated in the dense row. Rule alarms differ and are not confirmed.",
+    "A_2_007.jpg": "Finetuned 15 candidates vs pretrained 14. Both flag the fallen bicycle whose wheel crosses the parking line. Finetuned has an additional boundary alarm requiring review.",
+    "A_3_008.jpg": "Finetuned 28 candidates vs pretrained 26 across the whole image; main ROI has 12 vs 13 candidates. Extra total boxes include background detections, so total count alone cannot indicate better foreground recall.",
+    "limits": "Provisional manually drawn zones; no precision or recall on the unlabelled incoming test images. No incoming test images used for training or checkpoint selection."
+  },
+  "memory": {
+    "configuration": "One resident YOLO11x plus SAM2.1 tiny; batch 1 inference; sequential box prompts; YOLO imgsz 1280; SAM source max 1400x1900.",
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "gpu_total_mib": 12199.4375,
+    "notes": "PyTorch peaks are process allocations/reservations; nvidia-smi sampled totals include desktop and other processes. No guarantee for larger SAM models or batched inference."
+  },
+  "memory_models": [
+    {
+      "model": "finetuned_x",
+      "weights": "D:\\Bicycle\\runs\\bike11x_v1\\weights\\best.pt",
+      "torch_peak_allocated_mib": 967.26416015625,
+      "torch_peak_reserved_mib": 1324.0,
+      "sampled_whole_gpu_peak_used_mib": 2467.0
+    },
+    {
+      "model": "pretrained",
+      "weights": "D:\\Bicycle\\relabel\\weights\\yolo11x.pt",
+      "torch_peak_allocated_mib": 967.439453125,
+      "torch_peak_reserved_mib": 1240.0,
+      "sampled_whole_gpu_peak_used_mib": 2386.0
+    }
+  ]
+}

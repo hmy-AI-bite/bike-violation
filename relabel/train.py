@@ -6,8 +6,11 @@
 import argparse
 import os
 import sys
+import math
+from pathlib import Path
 
-sys.path.insert(0, r"D:\bick\yolo-lib")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "yolo-lib"))
 
 
 def patch_no_multiprocessing():
@@ -44,24 +47,37 @@ def patch_no_multiprocessing():
             setattr(mod, "ThreadPool", _SeqPool)
 
 
+def check_finite_metrics(trainer):
+    """明确报告 NaN/Inf；不能把验证失败当作正常训练完成。"""
+    values = dict(getattr(trainer, "metrics", {}) or {})
+    losses = getattr(trainer, "tloss", None)
+    if losses is not None:
+        values.update(trainer.label_loss_items(losses, prefix="train"))
+    bad = [k for k, v in values.items() if not math.isfinite(float(v))]
+    if bad:
+        raise RuntimeError("第 %d 轮出现 NaN/Inf: %s；请检查数据和训练参数，勿使用异常轮权重" %
+                           (trainer.epoch + 1, ", ".join(bad)))
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=r"D:\bick\yolo-lib")
-    ap.add_argument("--data", default=r"D:\bick\dataset_v2\data.yaml")
-    ap.add_argument("--weights", default=r"D:\bick\relabel\weights\yolo11s.pt")
+    ap.add_argument("--lib", default=str(ROOT / "yolo-lib"))
+    ap.add_argument("--data", default=str(ROOT / "dataset_v2/data.yaml"))
+    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11s.pt"))
     ap.add_argument("--epochs", type=int, default=120)
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--device", default="0")
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--cache", default="disk", help="ram / disk / False")
     ap.add_argument("--patience", type=int, default=35)
-    ap.add_argument("--project", default=r"D:\bick\runs")
+    ap.add_argument("--project", default=str(ROOT / "runs"))
     ap.add_argument("--name", default="bike_v2")
-    ap.add_argument("--lr0", type=float, default=0.01, help="初始学习率；小数据集建议 0.002")
+    ap.add_argument("--lr0", type=float, default=0.002, help="初始学习率；默认 0.002，需结合训练曲线调整")
     ap.add_argument("--freeze", type=int, default=None, help="冻结前 N 层")
     ap.add_argument("--mosaic", type=float, default=1.0)
-    ap.add_argument("--amp", action="store_true", default=None, help="默认关闭（小数据集更稳）")
+    ap.add_argument("--amp", action=argparse.BooleanOptionalAction, default=True,
+                    help="默认启用混合精度；--no-amp 关闭")
     args = ap.parse_args()
 
     sys.path.insert(0, args.lib)
@@ -69,6 +85,8 @@ def main():
 
     patch_no_multiprocessing()
     model = YOLO(args.weights)
+    model.add_callback("on_train_epoch_end", check_finite_metrics)
+    model.add_callback("on_fit_epoch_end", check_finite_metrics)
     model.train(
         data=args.data,
         epochs=args.epochs,

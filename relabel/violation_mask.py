@@ -6,7 +6,7 @@
     出界   —— 接地点 90% 以上在区外
     占道   —— 车身与禁停区(通道)重叠超过阈值
 
-同时输出"框规则"的结果做对照，量化掩膜比框精确多少。
+同时输出"框规则"的结果做对照，比较两套规则的差异（误报需人工真值评估）。
 
 用法:
     python violation_mask.py --source <图片目录> --scenes scenes.json --scene school_row
@@ -16,9 +16,14 @@ import csv
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, r"D:\CV-Datatext-Pipeline\sam2-repo")
-sys.path.insert(0, r"D:\bick\yolo-lib")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "yolo-lib"))
+
+from violation_rules import (BAD_VERDICTS, bicycle_class_id, classify_mask,
+                             count_verdicts, resolve_zones)
 
 import numpy as np  # noqa: E402
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
@@ -48,28 +53,46 @@ def main():
     ap.add_argument("--source", required=True)
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--scene", default="default")
-    ap.add_argument("--out", default=r"D:\bick\violation_mask_out")
-    ap.add_argument("--weights", default=r"D:\bick\relabel\weights\yolo11x.pt")
+    ap.add_argument("--out", default=str(ROOT / "violation_mask_out"))
+    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11x.pt"))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.35)
     ap.add_argument("--iou", type=float, default=0.45)
     ap.add_argument("--max-side", type=int, default=1400)
     ap.add_argument("--deny-tol", type=float, default=0.05)
     ap.add_argument("--box-tol", type=float, default=0.02)
+    ap.add_argument("--device", default="0", help="YOLO 设备：0 / cpu")
+    ap.add_argument("--sam-device", default="cuda")
+    ap.add_argument("--sam-checkpoint", default=CKPT)
+    ap.add_argument("--sam-config", default=CFG)
+    ap.add_argument("--contact-ratio", type=float, default=0.02,
+                    help="接地点条带占目标掩膜高度的比例，仍为几何近似")
+    ap.add_argument("--min-mask-area", type=int, default=200)
+    ap.add_argument("--min-mask-score", type=float, default=0.0,
+                    help="SAM 质量分数下限；不是违停概率，需用验证集选阈值")
     args = ap.parse_args()
+    if not 0 < args.contact_ratio <= 1 or args.min_mask_area < 1:
+        ap.error("contact-ratio 必须在 (0, 1] 内，min-mask-area 必须为正数")
+    if not all(0 <= v <= 1 for v in (args.deny_tol, args.box_tol, args.min_mask_score)):
+        ap.error("比例和质量分数阈值必须在 [0, 1] 内")
+    if args.max_side < 1:
+        ap.error("max-side 必须为正数")
 
     from sam2.build_sam import build_sam2
     from sam2.sam2_image_predictor import SAM2ImagePredictor
     from ultralytics import YOLO
 
-    scenes = json.load(open(args.scenes, encoding="utf-8-sig"))
+    with open(args.scenes, encoding="utf-8-sig") as f:
+        scenes = json.load(f)
     sc = scenes.get(args.scene)
     if sc is None:
         raise SystemExit("scenes.json 里没有场景 %r，现有场景: %s" %
                          (args.scene, ", ".join(scenes) or "(空)"))
 
     yolo = YOLO(args.weights)
-    sam = build_sam2(CFG, CKPT, device="cuda")
+    bike_class = bicycle_class_id(yolo.names)
+    print("自行车类别:", bike_class)
+    sam = build_sam2(args.sam_config, args.sam_checkpoint, device=args.sam_device)
     pred = SAM2ImagePredictor(sam)
 
     os.makedirs(args.out, exist_ok=True)
@@ -83,24 +106,17 @@ def main():
              if os.path.isdir(args.source) else [args.source])
 
     rows = []
-    stat = {"合规": 0, "压线": 0, "出界": 0, "占道": 0}
+    stat = count_verdicts([])
     box_bad_total = 0
     mask_bad_total = 0
 
     for path in files:
         stem = os.path.splitext(os.path.basename(path))[0]
-        # 优先用该图自己的区域，没有才回落到场景默认
-        per_img = (sc.get("images") or {}).get(stem) or {}
-        allow = per_img.get("allow") or sc.get("allow")
-        deny = per_img.get("deny") or sc.get("deny") or []
-        if not allow:
-            # 没标定区域：只检测、不判定（原始新图走这条路径）
-            has_zone = False
-            allow, deny = [], []
-        else:
-            has_zone = True
+        allow, deny = resolve_zones(sc, stem)
+        has_zone = bool(allow)
 
-        im = Image.open(path).convert("RGB")
+        with Image.open(path) as image:
+            im = image.convert("RGB")
         im.thumbnail((args.max_side, args.max_side * 2))
         W, H = im.size
         arr = np.array(im)
@@ -110,10 +126,12 @@ def main():
         for poly in deny:
             deny_r |= rasterize(poly, W, H)
 
-        res = yolo.predict(arr, imgsz=args.imgsz, conf=args.conf, iou=args.iou,
-                           classes=[1], device=0, verbose=False)[0]
+        # Ultralytics 的 ndarray 输入要求 BGR；SAM 的 set_image 要求 RGB。
+        res = yolo.predict(arr[:, :, ::-1].copy(), imgsz=args.imgsz, conf=args.conf, iou=args.iou,
+                           classes=[bike_class], device=args.device, verbose=False)[0]
         boxes = res.boxes.xyxy.cpu().numpy()
-        pred.set_image(arr)
+        if has_zone and len(boxes):
+            pred.set_image(arr)
 
         canvas = im.copy()
         d = ImageDraw.Draw(canvas)
@@ -124,39 +142,24 @@ def main():
                 d.line([(x * W, y * H) for x, y in poly] +
                        [(poly[0][0] * W, poly[0][1] * H)], fill=(255, 140, 0), width=5)
 
-        n_bad = 0
+        image_rows = []
         for bi, b in enumerate(boxes, 1):
-            masks, scores, _ = pred.predict(box=b, multimask_output=False)
-            m = np.asarray(masks)[0]
-            if m.ndim == 3:
-                m = m[0]
-            m = m > 0.0
-            if m.sum() < 200:
-                continue
-
-            if not has_zone:
-                verdict, color = "未标定", GRAY
-                c_frac = d_frac = box_out = -1.0
-                contact = np.zeros_like(m)
-                ys, xs = np.where(m)
-            else:
-                # 接地点：掩膜最低 2% 高度的那一条
-                ys, xs = np.where(m)
-                y_max = ys.max()
-                band = max(2, int(0.02 * H))
-                contact = m & (np.arange(H)[:, None] >= y_max - band + 1)
-                c_frac = (contact & allow_r).sum() / max(1, contact.sum())
-                d_frac = (m & deny_r).sum() / max(1, m.sum())
-
-                if d_frac > args.deny_tol:
-                    verdict, color = "占道", RED
-                elif c_frac >= 0.9:
-                    verdict, color = "合规", GREEN
-                elif c_frac > 0.1:
-                    verdict, color = "压线", YELLOW
-                else:
-                    verdict, color = "出界", RED
-            stat[verdict] = stat.get(verdict, 0) + 1
+            # 未标定图只检测，避免无意义的 SAM 推理。
+            score = -1.0
+            m = np.zeros((H, W), dtype=bool)
+            if has_zone:
+                masks, scores, _ = pred.predict(box=b, multimask_output=False)
+                m = np.asarray(masks).reshape(-1, H, W)[0] > 0.0
+                score = float(np.asarray(scores).reshape(-1)[0])
+            result = classify_mask(
+                m, allow_r, deny_r, has_zone=has_zone, score=score,
+                min_area=args.min_mask_area, min_score=args.min_mask_score,
+                contact_ratio=args.contact_ratio, deny_tol=args.deny_tol)
+            verdict = result["verdict"]
+            color = {"合规": GREEN, "压线": YELLOW, "出界": RED,
+                     "占道": RED}.get(verdict, GRAY)
+            stat[verdict] += 1
+            box_out = -1.0
 
             if has_zone:
                 # 框规则对照：车身在区外的比例
@@ -166,7 +169,7 @@ def main():
                 box_out = 1 - (bm & allow_r).sum() / max(1, bm.sum())
                 box_bad = box_out > args.box_tol
                 box_bad_total += int(box_bad)
-                mask_bad_total += int(verdict != "合规")
+                mask_bad_total += int(verdict in BAD_VERDICTS)
 
             # 画轮廓
             c = contour(m)
@@ -177,37 +180,44 @@ def main():
 
             box_rule = ("—" if not has_zone
                         else ("违停" if box_bad else "合规"))
-            rows.append(dict(image=stem, bike=bi, verdict=verdict,
-                             contact_in=round(float(c_frac), 3),
-                             deny=round(float(d_frac), 3),
-                             box_out=round(float(box_out), 3),
-                             box_rule=box_rule,
-                             score=round(float(scores[0]), 3)))
-            if has_zone and verdict != "合规":
-                n_bad += 1
+            row = dict(image=stem, bike=bi, verdict=verdict,
+                       contact_in=round(result["contact_in"], 3),
+                       deny=round(result["deny"], 3),
+                       box_out=round(float(box_out), 3), box_rule=box_rule,
+                       score=round(score, 3), reason=result["reason"])
+            rows.append(row)
+            image_rows.append(row)
+            if verdict in ("无法判定", "未标定"):
+                d = ImageDraw.Draw(canvas)
+                d.rectangle([float(v) for v in b], outline=GRAY, width=3)
+                d.text((float(b[0]), float(b[1])), verdict, fill=GRAY, font=font)
 
+        counts = count_verdicts(image_rows)
+        n_bad = sum(counts[v] for v in BAD_VERDICTS)
         d = ImageDraw.Draw(canvas)
-        d.rectangle([0, 0, 700, 48], fill=(0, 0, 0))
+        d.rectangle([0, 0, W, 48], fill=(0, 0, 0))
         if has_zone:
-            d.text((10, 6), "违停 %d / 共 %d（掩膜判定）" % (n_bad, len(boxes)),
-                   fill=(255, 60, 60) if n_bad else (0, 220, 90), font=font)
-            print("%-28s 合规 %2d  违停 %2d" % (stem, len(boxes) - n_bad, n_bad), flush=True)
+            message = "合规 %d / 违停 %d / 无法判定 %d / 检测 %d" % (
+                counts["合规"], n_bad, counts["无法判定"], len(boxes))
+            color = RED if n_bad else GRAY if counts["无法判定"] else GREEN
         else:
-            d.text((10, 6), "未标定区域 · 仅检测 %d 辆（不判定）" % len(boxes),
-                   fill=(180, 180, 180), font=font)
-            print("%-28s 未标定，仅检测 %2d 辆" % (stem, len(boxes)), flush=True)
+            message = "未标定区域 · 仅检测 %d 辆（不判定）" % len(boxes)
+            color = GRAY
+        d.text((10, 6), message, fill=color, font=font)
+        print("%s %s" % (stem, message), flush=True)
         canvas.save(os.path.join(args.out, os.path.basename(path)), quality=90)
 
-    if rows:
-        with open(os.path.join(args.out, "per_bike.csv"), "w",
-                  encoding="utf-8-sig", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-            w.writeheader()
-            w.writerows(rows)
+    # 即使没有检测结果也写表头，避免读到上次运行残留的 CSV。
+    with open(os.path.join(args.out, "per_bike.csv"), "w",
+              encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["image", "bike", "verdict", "contact_in",
+                                        "deny", "box_out", "box_rule", "score", "reason"])
+        w.writeheader()
+        w.writerows(rows)
 
     print("\n按掩膜判定:", stat)
-    print("掩膜判违停 %d 辆 | 框规则判违停 %d 辆 | 框的误报 %d 辆" %
-          (mask_bad_total, box_bad_total, max(0, box_bad_total - mask_bad_total)))
+    print("掩膜判违停 %d 辆 | 框规则判违停 %d 辆（均非误报统计，需人工真值）" %
+          (mask_bad_total, box_bad_total))
     print("输出:", args.out)
 
 
