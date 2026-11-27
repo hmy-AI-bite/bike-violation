@@ -3,14 +3,18 @@
 用法（先确认 dataset_v2/data.yaml 里的图片和标注已经审阅过）:
     python train.py --weights relabel/weights/yolo11s.pt --imgsz 960 --epochs 120 --batch 16
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import os
-import sys
 import math
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "yolo-lib"))
+ROOT = config.ROOT
 
 
 def patch_no_multiprocessing():
@@ -61,9 +65,9 @@ def check_finite_metrics(trainer):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=str(ROOT / "yolo-lib"))
-    ap.add_argument("--data", default=str(ROOT / "dataset_v2/data.yaml"))
-    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11s.pt"))
+    ap.add_argument("--lib", default=str(config.YOLO_LIB))
+    ap.add_argument("--data", default=str(Path(config.data_path('dataset_v2/data.yaml'))))
+    ap.add_argument("--weights", default=str(Path(config.weight_path('yolo11s.pt'))))
     ap.add_argument("--epochs", type=int, default=120)
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--batch", type=int, default=16)
@@ -71,7 +75,7 @@ def main():
     ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--cache", default="disk", help="ram / disk / False")
     ap.add_argument("--patience", type=int, default=35)
-    ap.add_argument("--project", default=str(ROOT / "runs"))
+    ap.add_argument("--project", default=config.output_path('runs'))
     ap.add_argument("--name", default="bike_v2")
     ap.add_argument("--lr0", type=float, default=0.002, help="初始学习率；默认 0.002，需结合训练曲线调整")
     ap.add_argument("--freeze", type=int, default=None, help="冻结前 N 层")

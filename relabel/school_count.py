@@ -6,19 +6,24 @@
 用法:
     python school_count.py --weights runs/school_v3/weights/best.pt
 输出:
-    D:\\bick\\school_infer\\*.jpg  带框图
-    D:\\bick\\school_infer\\counts.csv
+    school_infer/*.jpg  带框图
+    school_infer/counts.csv
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import csv
 import json
 import os
-import sys
 
-sys.path.insert(0, r"D:\bick\yolo-lib")
 
-SRC = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f"
-POLY = r"D:\bick\dataset_school\polygons.json"
+SRC = str(config.SCHOOL_SOURCE)
+POLY = config.data_path('dataset_school/polygons.json')
 
 
 def in_poly(x, y, pts):
@@ -37,23 +42,23 @@ def in_poly(x, y, pts):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=r"D:\bick\yolo-lib")
-    ap.add_argument("--weights", default=r"D:\bick\runs\school_v3\weights\best.pt")
+    ap.add_argument("--lib", default=str(config.YOLO_LIB))
+    ap.add_argument("--weights", default=config.output_path('runs/school_v3/weights/best.pt'))
     ap.add_argument("--src", default=SRC)
-    ap.add_argument("--out", default=r"D:\bick\school_infer")
+    ap.add_argument("--out", default=config.output_path('school_infer'))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.25)
     args = ap.parse_args()
 
-    sys.path.insert(0, args.lib)
     from PIL import Image, ImageDraw, ImageFont
+    sys.path.insert(0, args.lib)
     from ultralytics import YOLO
 
     polys = json.load(open(POLY, encoding="utf-8"))
     model = YOLO(args.weights)
     os.makedirs(args.out, exist_ok=True)
     try:
-        font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 30)
+        font = config.load_font(30)
     except Exception:
         font = ImageFont.load_default()
 

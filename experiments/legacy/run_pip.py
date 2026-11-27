@@ -3,10 +3,16 @@
 mkdtemp 建目录用 0o700，在当前文件系统策略下 pip 进程写不进去，
 会报 "Permission denied: ... pip-unpack-xxxx/*.whl"。这里改用 os.makedirs 建临时目录。
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import os
 import random
 import string
-import sys
 import tempfile
 
 

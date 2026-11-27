@@ -10,6 +10,13 @@
 用法:
     python compare.py
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import csv
 import hashlib
@@ -90,16 +97,19 @@ def md5(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=r"D:\bick\bike_dataset")
-    ap.add_argument("--auto", default=r"D:\bick\relabel\auto\labels")
-    ap.add_argument("--out", default=r"D:\bick\relabel\report")
+    ap.add_argument("--src", default=config.data_path('bike_dataset'))
+    ap.add_argument("--auto", default=config.output_path('relabel/auto/labels'))
+    ap.add_argument("--out", default=config.output_path('relabel/report'))
     ap.add_argument("--splits", default="train,val")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
     rows, dup_map, h2files = [], Counter(), {}
     for split in args.splits.split(","):
-        odir = os.path.join(args.src, "labels", split)
+        original_labels = Path(args.src) / "labels"
+        if not original_labels.is_dir() and Path(args.src).resolve() == Path(config.data_path('bike_dataset')).resolve():
+            original_labels = config.DATA_ROOT / "network/used/original_annotations/legacy_download/labels"
+        odir = str(original_labels / split)
         adir = os.path.join(args.auto, split)
         idir = os.path.join(args.src, "images", split)
         stems = sorted({f[:-4] for f in os.listdir(odir) if f.endswith(".txt")} |

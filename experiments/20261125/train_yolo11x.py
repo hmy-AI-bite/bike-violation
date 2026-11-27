@@ -1,12 +1,16 @@
 """Reproducible YOLO11x training; incoming photos are test-only."""
+
 from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
 import math
-import sys
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / 'yolo-lib'), str(ROOT / 'relabel')]
+ROOT = config.ROOT
 
 
 def main():
@@ -20,7 +24,7 @@ def main():
     from ultralytics import YOLO
     from train import patch_no_multiprocessing, check_finite_metrics
     patch_no_multiprocessing()
-    model = YOLO(str(ROOT / 'relabel/weights/yolo11x.pt'))
+    model = YOLO(str(Path(config.weight_path('yolo11x.pt'))))
 
     def check_parameters(trainer):
         check_finite_metrics(trainer)
@@ -31,8 +35,8 @@ def main():
     model.add_callback('on_train_epoch_end', check_parameters)
     model.add_callback('on_fit_epoch_end', check_finite_metrics)
     model.train(
-        data=str(ROOT / 'dataset_v2/data.yaml'),
-        project=str(ROOT / 'runs'), name=args.name, exist_ok=False,
+        data=str(Path(config.data_path('dataset_v2/data.yaml'))),
+        project=config.output_path('runs'), name=args.name, exist_ok=False,
         epochs=args.epochs, patience=12, imgsz=args.imgsz, batch=args.batch, device=0,
         workers=0, cache=False, amp=True, optimizer='AdamW', lr0=0.0001,
         lrf=0.1, warmup_epochs=3, cos_lr=True, freeze=10,
@@ -41,8 +45,8 @@ def main():
     )
     out = Path(model.trainer.save_dir)
     report = {
-        'initial_weights': str(ROOT / 'relabel/weights/yolo11x.pt'),
-        'training_dataset': str(ROOT / 'dataset_v2/data.yaml'),
+        'initial_weights': str(Path(config.weight_path('yolo11x.pt'))),
+        'training_dataset': str(Path(config.data_path('dataset_v2/data.yaml'))),
         'incoming_test_data_used_for_training': False,
         'gpu': torch.cuda.get_device_name(0),
         'imgsz': args.imgsz,

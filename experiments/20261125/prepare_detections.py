@@ -1,17 +1,21 @@
 """Generate identical-parameter predictions for the three fixed test images."""
+
 from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
-import sys
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT/'yolo-lib'), str(ROOT/'relabel')]
+ROOT = config.ROOT
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=Path, default=ROOT/'incoming/单车违停检测/原始图片')
-    parser.add_argument('--finetuned', type=Path, default=ROOT/'runs/bike11x_v1/weights/best.pt')
+    parser.add_argument('--source', type=Path, default=Path(config.data_path('incoming/单车违停检测/原始图片')))
+    parser.add_argument('--finetuned', type=Path, default=Path(config.output_path('runs/bike11x_v1/weights/best.pt')))
     args = parser.parse_args()
     from ultralytics import YOLO
     from violation_rules import bicycle_class_id
@@ -22,7 +26,7 @@ def main():
         if len(matches) != 1:
             parser.error(f'Expected exactly one {name} under {args.source}; found {len(matches)}')
         sources[name] = matches[0]
-    weights = {'finetuned_x': args.finetuned, 'pretrained': ROOT/'relabel/weights/yolo11x.pt'}
+    weights = {'finetuned_x': args.finetuned, 'pretrained': Path(config.weight_path('yolo11x.pt'))}
     for path in weights.values():
         if not path.is_file():
             parser.error(f'Missing local weights: {path}')
@@ -37,7 +41,7 @@ def main():
             records.append(dict(model=tag, image=name, source=str(source), count=len(boxes), boxes=boxes))
             print(tag, name, len(boxes), flush=True)
         del model
-    out = ROOT/'runs/incoming_20261125/comparison_x_v1'
+    out = Path(config.output_path('runs/incoming_20261125/comparison_x_v1'))
     out.mkdir(parents=True, exist_ok=True)
     (out/'detections.json').write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding='utf-8')
 

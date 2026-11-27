@@ -2,15 +2,18 @@
 
 Test images and weights are never modified. Manual zones are provisional.
 """
+
 from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import csv
 import json
-import sys
 import time
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / 'yolo-lib'), str(ROOT / 'relabel'),
-                r'D:\CV-Datatext-Pipeline\sam2-repo']
+ROOT = config.ROOT
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from ultralytics.utils.patches import imread
@@ -18,7 +21,7 @@ from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from violation_rules import classify_mask, count_verdicts, contact_band
 
-OUT = ROOT / 'runs/incoming_20261125/comparison_x_v1'
+OUT = Path(config.output_path('runs/incoming_20261125/comparison_x_v1'))
 BASE = OUT.parent
 CONFIGS = {
     'A_1_038.jpg': {
@@ -41,8 +44,8 @@ COLORS = {'合规': (0,210,90), '压线': (255,190,0),
           '无法判定': (160,160,160), '范围外未评估': (160,160,160)}
 LABELS = {'finetuned_x': '我们的微调大模型 YOLO11x',
           'pretrained': '官方预训练大模型 YOLO11x'}
-FONT = ImageFont.truetype('C:/Windows/Fonts/msyh.ttc', 23)
-SMALL = ImageFont.truetype('C:/Windows/Fonts/msyh.ttc', 18)
+FONT = config.load_font(23)
+SMALL = config.load_font(18)
 
 
 def main():
@@ -51,13 +54,13 @@ def main():
         'reference_size': [900,1200], 'manual_provisional_zones': True,
         'purpose': 'Test inference only, not independent ground truth or training labels.',
         'images': CONFIGS}, ensure_ascii=False, indent=2), encoding='utf-8')
-    sam = build_sam2('configs/sam2.1/sam2.1_hiera_t.yaml',
-                    r'D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt', device='cuda')
+    sam = build_sam2(config.SAM2_CONFIG,
+                    str(config.SAM2_CHECKPOINT), device='cuda')
     predictor = SAM2ImagePredictor(sam)
     summary, all_rows = [], []
     for name, cfg in CONFIGS.items():
         first = next(r for r in detections if r['image'] == name)
-        bgr = imread(first['source'])
+        bgr = imread(config.resolve_project_path(first['source']))
         h0, w0 = bgr.shape[:2]
         original = Image.fromarray(bgr[:, :, ::-1])
         original.thumbnail((1400,1900))

@@ -1,15 +1,19 @@
 """Measure a resident YOLO11x + SAM2 pipeline and inspect boundary crops."""
+
 from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import gc
 import importlib.util
 import json
 import subprocess
-import sys
 import threading
 import time
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT/'yolo-lib'),str(ROOT/'relabel'),r'D:\CV-Datatext-Pipeline\sam2-repo']
+ROOT = config.ROOT
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -19,20 +23,20 @@ from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from violation_rules import bicycle_class_id, classify_mask, contact_band
 
-HERE = ROOT / 'runs/incoming_20261125/comparison_x_v1'
+HERE = Path(config.output_path('runs/incoming_20261125/comparison_x_v1'))
 OUT = HERE/'sam_memory_trial'
 OUT.mkdir(exist_ok=True)
 spec=importlib.util.spec_from_file_location('comparison_config',Path(__file__).resolve().with_name('run_comparison.py'))
-config=importlib.util.module_from_spec(spec)
-spec.loader.exec_module(config)
+comparison=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(comparison)
 records=json.loads((HERE/'detections.json').read_text(encoding='utf-8'))
-font=ImageFont.truetype('C:/Windows/Fonts/msyh.ttc',22)
+font=config.load_font(22)
 
 
 def main():
     summaries=[]
-    for tag,weights in [('finetuned_x',ROOT/'runs/bike11x_v1/weights/best.pt'),
-                        ('pretrained',ROOT/'relabel/weights/yolo11x.pt')]:
+    for tag,weights in [('finetuned_x',Path(config.output_path('runs/bike11x_v1/weights/best.pt'))),
+                        ('pretrained',Path(config.weight_path('yolo11x.pt')))]:
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
         samples=[]
@@ -51,13 +55,13 @@ def main():
         thread=threading.Thread(target=monitor,daemon=True)
         thread.start()
         yolo=YOLO(str(weights))
-        sam=build_sam2('configs/sam2.1/sam2.1_hiera_t.yaml',
-            r'D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt',device='cuda')
+        sam=build_sam2(config.SAM2_CONFIG,
+            str(config.SAM2_CHECKPOINT),device='cuda')
         predictor=SAM2ImagePredictor(sam)
         rows=[]
         try:
-            for name,cfg in config.CONFIGS.items():
-                src=next(r['source'] for r in records if r['image']==name)
+            for name,cfg in comparison.CONFIGS.items():
+                src=config.resolve_project_path(next(r['source'] for r in records if r['image']==name))
                 rgb0=imread(src)[:,:,::-1].copy()
                 h0,w0=rgb0.shape[:2]
                 im=Image.fromarray(rgb0)
@@ -94,7 +98,7 @@ def main():
                     cx=min(w-1,max(0,int((b[0]+b[2])/2)))
                     cy=min(h-1,max(0,int((b[1]+b[3])/2)))
                     if not roi[cy,cx]:verdict=dict(verdict='范围外未评估',contact_in=-1,deny=-1,reason='outside_roi')
-                    color=np.array(config.COLORS[verdict['verdict']])
+                    color=np.array(comparison.COLORS[verdict['verdict']])
                     canvas[mask]=canvas[mask]*.7+color*.3
                     canvas[contact_band(mask,.02)]=[255,0,255]
                     items.append(dict(id=i,box=b.tolist(),sam_quality=score,**verdict))
@@ -105,7 +109,7 @@ def main():
                 d.line(pts(cfg['allow'])+[pts(cfg['allow'])[0]],fill=(30,130,255),width=5)
                 for b,item in zip(boxes,items):
                     d.text((b[0],b[1]),f"#{item['id']} {item['verdict']}",font=font,
-                        fill=config.COLORS[item['verdict']],stroke_width=1,stroke_fill='black')
+                        fill=comparison.COLORS[item['verdict']],stroke_width=1,stroke_fill='black')
                 dest=OUT/tag
                 dest.mkdir(exist_ok=True)
                 image.save(dest/name,quality=94)

@@ -2,6 +2,13 @@
 
 流程: 参考图区域 --单应--> 目标图粗略位置 --沿边搜索白线--> 精确位置
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import json
 import os
 
@@ -9,17 +16,15 @@ import cv2
 import numpy as np
 
 MAX_SIDE = 900
-REF = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\039f0796-A_013.jpg"
-SCENES = r"D:\bick\dataset_school\scenes.json"
-OUT = r"D:\bick\report_warp_snap"
+REF = config.school_image('039f0796-A_013.jpg')
+SCENES = str(config.SCENES)
+OUT = config.output_path('report_warp_snap')
 QUERIES = [
-    r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\feb3e917-A_002.jpg",
-    r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\5bd0ea40-A_017.jpg",
-    r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\9acffb68-A_006.jpg",
+    config.school_image('feb3e917-A_002.jpg'),
+    config.school_image('5bd0ea40-A_017.jpg'),
+    config.school_image('9acffb68-A_006.jpg'),
 ]
 
-import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from snap_to_line import white_mask, snap  # noqa: E402
 
 

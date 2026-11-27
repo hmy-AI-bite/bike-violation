@@ -2,27 +2,31 @@
 
 用法: python sam_demo.py <image> [out.jpg]
 """
-import os
-import sys
 
-sys.path.insert(0, r"D:\CV-Datatext-Pipeline\sam2-repo")
-sys.path.insert(0, r"D:\bick\yolo-lib")
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
+import os
+
 
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
-CKPT = r"D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt"
-CFG = "configs/sam2.1/sam2.1_hiera_t.yaml"
+CKPT = str(config.SAM2_CHECKPOINT)
+CFG = config.SAM2_CONFIG
 
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else \
-        r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\039f0796-A_013.jpg"
-    out = sys.argv[2] if len(sys.argv) > 2 else r"D:\bick\relabel\report\sam_demo.jpg"
+        config.school_image('039f0796-A_013.jpg')
+    out = sys.argv[2] if len(sys.argv) > 2 else config.output_path('relabel/report/sam_demo.jpg')
 
     from ultralytics import YOLO
-    yolo = YOLO(r"D:\bick\relabel\weights\yolo11x.pt")
+    yolo = YOLO(config.weight_path('yolo11x.pt'))
     im = Image.open(src).convert("RGB")
     W, H = im.size
     small = im.copy()

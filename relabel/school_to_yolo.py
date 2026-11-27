@@ -12,19 +12,26 @@
 用法:
     python school_to_yolo.py
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
 import os
 import shutil
 from collections import Counter
 
-SRC = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f"
+SRC = str(config.SCHOOL_SOURCE)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=SRC)
-    ap.add_argument("--out", default=r"D:\bick\dataset_school")
+    ap.add_argument("--out", default=config.data_path('dataset_school'))
     ap.add_argument("--val-every", type=int, default=6)
     args = ap.parse_args()
 
@@ -78,7 +85,6 @@ def main():
 
     with open(os.path.join(args.out, "data.yaml"), "w", encoding="utf-8") as f:
         f.write("# 学校自行车停放区检测\n")
-        f.write("path: %s\n" % os.path.abspath(args.out).replace("\\", "/"))
         f.write("train: images/train\nval: images/val\n\n")
         f.write("nc: 2\nnames: ['bicycle', 'parking_area']\n")
 

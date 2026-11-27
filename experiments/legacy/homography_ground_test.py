@@ -1,18 +1,24 @@
 """对照实验：用全部特征 vs 只用地面特征 估单应，看区域框飘多少。"""
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import json
 import os
-import sys
 
 import cv2
 import numpy as np
 
 MAX_SIDE = 900
-REF = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\039f0796-A_013.jpg"
-SCENES = r"D:\bick\dataset_school\scenes.json"
-OUT = r"D:\bick\report_homography"
+REF = config.school_image('039f0796-A_013.jpg')
+SCENES = str(config.SCENES)
+OUT = config.output_path('report_homography')
 QUERIES = [
-    r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\feb3e917-A_002.jpg",
-    r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\5bd0ea40-A_017.jpg",
+    config.school_image('feb3e917-A_002.jpg'),
+    config.school_image('5bd0ea40-A_017.jpg'),
 ]
 
 

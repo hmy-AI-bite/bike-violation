@@ -6,23 +6,30 @@
     红   < 0.35         重点怀疑（误检高发）
 
 输出:
-    dataset_v2/preview/{train,val}/*.jpg   带框原尺寸图
-    review.html                            翻页查看器（键盘 <- -> 切换）
+    runs/previews/network_bicycle_v2/{train,val}/*.jpg   带框原尺寸图
+    runs/previews/network_bicycle_v2/review.html         翻页查看器
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import json
 import os
-import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-DS = r"D:\bick\dataset_v2"
-DET = r"D:\bick\relabel\auto\detections.json"
-SRC = r"D:\bick\bike_dataset"
-VIEWER = r"D:\bick\review.html"
+DS = config.data_path('dataset_v2')
+DET = config.output_path('relabel/auto/detections.json')
+SRC = config.data_path('bike_dataset')
+VIEWER = config.output_path('review.html')
+PREVIEW_ROOT = str(Path(VIEWER).parent)
 
 try:
-    FONT = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 18)
-    FONT_S = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 14)
+    FONT = config.load_font(18)
+    FONT_S = config.load_font(14)
 except Exception:
     FONT = FONT_S = ImageFont.load_default()
 
@@ -61,7 +68,7 @@ def main():
     for split in ("train", "val"):
         idir = os.path.join(DS, "images", split)
         ldir = os.path.join(DS, "labels", split)
-        odir = os.path.join(DS, "preview", split)
+        odir = os.path.join(PREVIEW_ROOT, split)
         os.makedirs(odir, exist_ok=True)
 
         for fn in sorted(os.listdir(idir)):
@@ -113,15 +120,17 @@ def main():
             manifest.append(dict(
                 split=split, name=stem, w=W, h=H, n=len(boxes),
                 min_conf=round(min(confs), 3) if confs else None,
-                src="dataset_v2/preview/%s/%s.jpg" % (split, stem),
+                src="%s/%s.jpg" % (split, stem),
+                original_src=Path(os.path.relpath(
+                    Path(DS) / "images" / split / (stem + ".jpg"), PREVIEW_ROOT)).as_posix(),
             ))
             if total % 40 == 0:
                 print("  %d ..." % total, flush=True)
 
-    with open(os.path.join(DS, "preview", "manifest.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(PREVIEW_ROOT, "viewer_manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False)
     write_viewer(manifest)
-    print("已生成 %d 张带框图 -> %s" % (total, os.path.join(DS, "preview")))
+    print("已生成 %d 张带框图 -> %s" % (total, PREVIEW_ROOT))
     print("查看器 ->", VIEWER)
 
 
@@ -159,7 +168,7 @@ function render(){
     if(i >= list.length) i = 0;
   } else { list = ALL.slice(); }
   const it = list[i]; if(!it) return;
-  document.getElementById('pic').src = it.src.replace('/preview/', showOrig ? '/images/' : '/preview/');
+  document.getElementById('pic').src = showOrig ? it.original_src : it.src;
   document.getElementById('name').textContent = it.split + ' / ' + it.name;
   document.getElementById('meta').textContent = it.w + '×' + it.h + '  ' + it.n + ' 框'
       + (it.min_conf === null ? '' : '  最低置信 ' + it.min_conf);

@@ -1,11 +1,17 @@
 """训练前数据体检：检查 YOLO 数据集能不能直接拿去训练。
 
 用法:
-    python check_dataset.py --data D:\\bick\\dataset_school\\data.yaml
+    python check_dataset.py --data dataset_school/data.yaml
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import os
-import sys
 from collections import Counter
 
 IMG_EXTS = (".jpg", ".jpeg", ".png", ".bmp", ".webp")

@@ -1,5 +1,10 @@
 # ---- 环境与第三方（不版本化）----
 .venv/
+experiments/.venv-parts/
+experiments/model_cache/
+.env
+.env.local
+vendor/
 yolo-lib/
 .idea/
 __pycache__/
@@ -24,6 +29,7 @@ relabel/auto/
 images/
 labels/
 data/
+tmp/
 incoming/
 
 # ---- 训练 / 推理产物（可重新生成）----

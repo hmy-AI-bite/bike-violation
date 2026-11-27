@@ -3,19 +3,26 @@
 """把 YOLO 数据集里的 .txt 标注逐个转换成同名 .json（保留原 txt 不动）。
 
 用法:
-    python yolo_txt_to_json.py                 # 默认处理 D:\\bick\\bike_dataset
+    python yolo_txt_to_json.py                 # 默认处理 bike_dataset
     python yolo_txt_to_json.py <dataset_dir>
 
 输入: <dataset>/labels/{train,val}/image_xxxxxx.txt
 输出: <dataset>/labels/{train,val}/image_xxxxxx.json
 """
 
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
+
 import json
 import os
 import sys
 from struct import unpack
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else r"D:\bick\bike_dataset"
+ROOT = sys.argv[1] if len(sys.argv) > 1 else config.data_path('bike_dataset')
 SPLITS = ["train", "val"]
 INDENT = 2
 

@@ -1,17 +1,22 @@
 """渲染标定工具界面，检查外观。"""
-import os
+
+from pathlib import Path
 import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
+import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "windows")
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from zone_tool import Main  # noqa: E402
 
 app = QApplication(sys.argv)
-w = Main(r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images",
-         r"D:\bick\dataset_school\scenes.json", "school_row")
+w = Main(str(config.SCHOOL_IMAGES),
+         str(config.SCENES), "school_row")
 w.resize(1300, 880)
 w.show()
 app.processEvents()
@@ -21,6 +26,6 @@ w.canvas.cursor = w.canvas.to_screen(0.60 * w.canvas.pix.width(), 0.86 * w.canva
 w.update_lbl()
 app.processEvents()
 
-out = r"D:\bick\tools\zone_ui.png"
+out = config.output_path('tools/zone_ui.png')
 w.grab().save(out)
 print("saved", out)

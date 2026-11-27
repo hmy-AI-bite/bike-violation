@@ -8,13 +8,18 @@ COCO 里 bicycle 的类别 id 是 1，输出时重映射为本地类别 0。
                         --out relabel/auto \
                         --imgsz 1280 --conf 0.15 --device 0
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
 import os
-import sys
 import time
 
-sys.path.insert(0, r"D:\bick\yolo-lib")
 
 COCO_BICYCLE = 1
 COCO_MOTORCYCLE = 3
@@ -32,7 +37,7 @@ def draw_preview(src, bikes, motos, out_dir, stem, scale=1.0):
         img = img.resize((max(1, int(W * scale)), max(1, int(H * scale))))
     d = ImageDraw.Draw(img)
     try:
-        font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 14)
+        font = config.load_font(14)
     except Exception:
         font = ImageFont.load_default()
 
@@ -57,10 +62,10 @@ def draw_preview(src, bikes, motos, out_dir, stem, scale=1.0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=r"D:\bick\yolo-lib")
-    ap.add_argument("--weights", default=r"D:\bick\relabel\weights\yolo11x.pt")
-    ap.add_argument("--src", default=r"D:\bick\bike_dataset")
-    ap.add_argument("--out", default=r"D:\bick\relabel\auto")
+    ap.add_argument("--lib", default=str(config.YOLO_LIB))
+    ap.add_argument("--weights", default=config.weight_path('yolo11x.pt'))
+    ap.add_argument("--src", default=config.data_path('bike_dataset'))
+    ap.add_argument("--out", default=config.output_path('relabel/auto'))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.15)
     ap.add_argument("--iou", type=float, default=0.50)

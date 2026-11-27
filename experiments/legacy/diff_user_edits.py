@@ -1,11 +1,18 @@
 """对比「自动标注」和「用户精修后」的标注差异。"""
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import json
 import os
 from collections import Counter
 
-DS = r"D:\bick\dataset_v2"
-AUTO = r"D:\bick\relabel\auto\labels"
-OUT = r"D:\bick\relabel\report\user_edits.json"
+DS = config.data_path('dataset_v2')
+AUTO = config.output_path('relabel/auto/labels')
+OUT = config.output_path('relabel/report/user_edits.json')
 
 
 def count(p):

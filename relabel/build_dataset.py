@@ -4,6 +4,13 @@
     python build_dataset.py --labels relabel/auto/labels --out dataset_v2
     python build_dataset.py --labels dataset_v2/labels --out dataset_v2   # 只重建 data.yaml
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import os
 import shutil
@@ -13,9 +20,9 @@ IMG_EXTS = (".jpg", ".jpeg", ".png", ".bmp", ".webp")
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=r"D:\bick\bike_dataset")
-    ap.add_argument("--labels", default=r"D:\bick\relabel\auto\labels")
-    ap.add_argument("--out", default=r"D:\bick\dataset_v2")
+    ap.add_argument("--src", default=config.data_path('bike_dataset'))
+    ap.add_argument("--labels", default=config.output_path('relabel/auto/labels'))
+    ap.add_argument("--out", default=config.data_path('dataset_v2'))
     ap.add_argument("--splits", default="train,val")
     ap.add_argument("--skip-images", action="store_true")
     args = ap.parse_args()
@@ -51,7 +58,6 @@ def main():
     yaml_path = os.path.join(args.out, "data.yaml")
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write("# 自行车检测数据集（预训练模型重标 + 人工复核）\n")
-        f.write("path: %s\n" % os.path.abspath(args.out).replace("\\", "/"))
         f.write("train: images/train\n")
         f.write("val: images/val\n\n")
         f.write("nc: 1\nnames: ['bicycle']\n")

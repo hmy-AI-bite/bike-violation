@@ -8,10 +8,16 @@
 用法:
     python scene_match.py --ref <参考图> --queries <目录或图片> [--warp-scenes scenes.json --scene 名字]
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
 import os
-import sys
 
 import cv2
 import numpy as np
@@ -43,7 +49,7 @@ def main():
     ap.add_argument("--queries", required=True)
     ap.add_argument("--scenes", default="", help="可选：用单应把该场景区域搬到每张图")
     ap.add_argument("--scene", default="")
-    ap.add_argument("--out", default=r"D:\bick\scene_match_out")
+    ap.add_argument("--out", default=config.output_path('scene_match_out'))
     args = ap.parse_args()
 
     detector = cv2.SIFT_create(nfeatures=4000)

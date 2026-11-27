@@ -1,10 +1,17 @@
 """从一张图的标注里取停车区多边形，生成场景配置 scenes.json。"""
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import json
 import os
 
-LAB = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\labels"
+LAB = str(config.SCHOOL_SOURCE / "labels")
 REF = "039f0796-A_013"
-OUT = r"D:\bick\dataset_school\scenes.json"
+OUT = str(config.SCENES)
 
 
 def polygon(stem):

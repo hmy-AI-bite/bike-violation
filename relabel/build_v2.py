@@ -5,6 +5,13 @@
 用法:
     python build_v2.py --labels relabel/auto/labels --out dataset_v2
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import hashlib
 import json
@@ -25,9 +32,9 @@ def md5(p):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=r"D:\bick\bike_dataset")
-    ap.add_argument("--labels", default=r"D:\bick\relabel\auto\labels")
-    ap.add_argument("--out", default=r"D:\bick\dataset_v2")
+    ap.add_argument("--src", default=config.data_path('bike_dataset'))
+    ap.add_argument("--labels", default=config.output_path('relabel/auto/labels'))
+    ap.add_argument("--out", default=config.data_path('dataset_v2'))
     ap.add_argument("--val-ratio", type=float, default=0.2)
     args = ap.parse_args()
 
@@ -64,7 +71,6 @@ def main():
     yaml_path = os.path.join(args.out, "data.yaml")
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write("# 自行车检测：yolo11x 预训练模型自动标注（待人工复核）+ 按哈希去重\n")
-        f.write("path: %s\n" % os.path.abspath(args.out).replace("\\", "/"))
         f.write("train: images/train\nval: images/val\n\nnc: 1\nnames: ['bicycle']\n")
 
     print("唯一图片 %d 张, 丢弃重复 %d 个" % (sum(stat.values()), dupes))

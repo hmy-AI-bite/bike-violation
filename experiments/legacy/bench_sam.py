@@ -1,20 +1,24 @@
 """测速：YOLO 单独 vs YOLO+SAM2 每张图耗时。"""
+
+from pathlib import Path
 import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import time
 
-sys.path.insert(0, r"D:\CV-Datatext-Pipeline\sam2-repo")
-sys.path.insert(0, r"D:\bick\yolo-lib")
 
 import numpy as np
 from PIL import Image
 
 from ultralytics import YOLO
 
-IMG = r"J:\project-1-at-2026-11-13-17-44-a1d4a70f\images\039f0796-A_013.jpg"
-CKPT = r"D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt"
-CFG = "configs/sam2.1/sam2.1_hiera_t.yaml"
+IMG = config.school_image('039f0796-A_013.jpg')
+CKPT = str(config.SAM2_CHECKPOINT)
+CFG = config.SAM2_CONFIG
 
-yolo = YOLO(r"D:\bick\relabel\weights\yolo11x.pt")
+yolo = YOLO(config.weight_path('yolo11x.pt'))
 im = Image.open(IMG).convert("RGB")
 im.thumbnail((1400, 1900))
 arr = np.array(im)

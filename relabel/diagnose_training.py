@@ -3,10 +3,16 @@
 用法:
     python diagnose_training.py --run runs/school_v3
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import csv as csvmod
 import os
-import sys
 
 import matplotlib
 matplotlib.use("Agg")

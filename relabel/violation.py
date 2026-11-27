@@ -15,15 +15,19 @@
 用法:
     python violation.py --source imgs --scenes scenes.json --scene campus_a
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import csv
 import json
 import os
-import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "yolo-lib"))
+ROOT = config.ROOT
 from violation_rules import bicycle_class_id, resolve_zones
 
 
@@ -60,12 +64,12 @@ def load_scene(scenes, name, stem):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", default=str(ROOT / "yolo-lib"))
-    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11x.pt"))
+    ap.add_argument("--lib", default=str(config.YOLO_LIB))
+    ap.add_argument("--weights", default=str(Path(config.weight_path('yolo11x.pt'))))
     ap.add_argument("--source", required=True)
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--scene", default="default")
-    ap.add_argument("--out", default=str(ROOT / "violation_v2"))
+    ap.add_argument("--out", default=config.output_path('violation_v2'))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.35)
     ap.add_argument("--iou", type=float, default=0.45)
@@ -74,8 +78,8 @@ def main():
     ap.add_argument("--deny-tol", type=float, default=0.05, help="容忍的占道比例")
     args = ap.parse_args()
 
-    sys.path.insert(0, args.lib)
     from PIL import Image, ImageDraw, ImageFont
+    sys.path.insert(0, args.lib)
     from ultralytics import YOLO
 
     with open(args.scenes, encoding="utf-8-sig") as f:
@@ -84,7 +88,7 @@ def main():
     bike_class = bicycle_class_id(model.names)
     os.makedirs(args.out, exist_ok=True)
     try:
-        font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 32)
+        font = config.load_font(32)
     except Exception:
         font = ImageFont.load_default()
 

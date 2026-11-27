@@ -6,10 +6,16 @@
 用法:
     python snap_to_line.py --image <图> --scenes scenes.json --scene school_row [--apply]
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import json
 import os
-import sys
 
 import cv2
 import numpy as np
@@ -91,9 +97,9 @@ def snap(poly_px, mask, search=40):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--image", required=True)
-    ap.add_argument("--scenes", default=r"D:\bick\dataset_school\scenes.json")
+    ap.add_argument("--scenes", default=str(config.SCENES))
     ap.add_argument("--scene", default="school_row")
-    ap.add_argument("--out", default=r"D:\bick\snap_out")
+    ap.add_argument("--out", default=config.output_path('snap_out'))
     ap.add_argument("--search", type=int, default=40)
     ap.add_argument("--apply", action="store_true", help="把结果写回 scenes.json 的场景默认区域")
     args = ap.parse_args()
