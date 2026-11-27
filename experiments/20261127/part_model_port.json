@@ -1,0 +1,6 @@
+{
+  "file": "experiments\\vendor\\PartGLEE-master\\projects\\PartGLEE\\partglee\\models\\pixel_decoder\\ops\\functions\\ms_deform_attn_func.py",
+  "before_sha256": "9e9347b91e64ce67a464e27e9bf1808ac6c356626ea8958a83dba134b5446eef",
+  "after_sha256": "5d3181318fac66f2cb2a3e02ff1b73d3ae16cc1710f8d80a911a02e54d185618",
+  "reason": "Allow module import without compiled MSDA; original caller already catches failure and uses its PyTorch reference implementation."
+}

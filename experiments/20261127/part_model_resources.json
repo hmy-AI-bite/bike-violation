@@ -1,0 +1,65 @@
+{
+  "partglee_paper": {
+    "name": "partglee_paper",
+    "path": "docs\\papers\\07_2024_PartGLEE.pdf",
+    "source": "https://arxiv.org/pdf/2407.16696",
+    "status": "ok",
+    "bytes": 32681940,
+    "sha256": "4d1f439253a91ec48cea84c3a1c8f5181ef047f72f6dd7d0b17509fb97649e62",
+    "elapsed_seconds": 3.89
+  },
+  "vlpart_paper": {
+    "name": "vlpart_paper",
+    "path": "docs\\papers\\08_2023_VLPart.pdf",
+    "source": "https://openaccess.thecvf.com/content/ICCV2023/papers/Sun_Going_Denser_with_Open-Vocabulary_Part_Segmentation_ICCV_2023_paper.pdf",
+    "status": "ok",
+    "bytes": 3363357,
+    "sha256": "59dff4daa74a2644c6baab7ac9ee68b0e32da9a397e9d61c79d6b1b58e15e6e8",
+    "elapsed_seconds": 3.89
+  },
+  "partglee_code": {
+    "name": "partglee_code",
+    "path": "experiments\\vendor\\PartGLEE-master.zip",
+    "source": "https://codeload.github.com/ProvenceStar/PartGLEE/zip/refs/heads/master",
+    "status": "ok",
+    "bytes": 41015423,
+    "sha256": "1c58aa66852ef27ff187607382405098501011acd3c0c8ce1c2e43267e6d3c30",
+    "elapsed_seconds": 5.26
+  },
+  "vlpart_code": {
+    "name": "vlpart_code",
+    "path": "experiments\\vendor\\VLPart-main.zip",
+    "source": "https://codeload.github.com/facebookresearch/VLPart/zip/refs/heads/main",
+    "status": "ok",
+    "bytes": 12845683,
+    "sha256": "56fadf8b4148a0e5e903fbe8848299069f557035192a9d5667d0d844d3066f66",
+    "elapsed_seconds": 3.25
+  },
+  "vlpart_r50": {
+    "name": "vlpart_r50",
+    "path": "experiments\\model_cache\\parts\\r50_pascalpart.pth",
+    "source": "https://github.com/PeizeSun/VLPart/releases/download/v0.1/r50_pascalpart.pth",
+    "status": "ok",
+    "bytes": 184983381,
+    "sha256": "1f55e2c5b1b491c47f2c63cb6b8fc4952bb336341ff5dc579f2167e075ec1c1e",
+    "elapsed_seconds": 19.2
+  },
+  "partglee_r50": {
+    "name": "partglee_r50",
+    "path": "experiments\\model_cache\\parts\\PartGLEE_RN50.pth",
+    "source": "https://drive.usercontent.google.com/download?id=1SK0HsYXBcTvprFAxqxH-lgpkgV67B4UZ&export=download&authuser=0&confirm=t",
+    "status": "ok",
+    "bytes": 831794672,
+    "sha256": "537e222d3db5cd989d962d01ff03bdadb9c1aa0b1bebf07da2b1977dfca25353",
+    "elapsed_seconds": 159.7
+  },
+  "clip_code": {
+    "name": "clip_code",
+    "path": "experiments\\vendor\\CLIP-main.zip",
+    "source": "https://codeload.github.com/openai/CLIP/zip/refs/heads/main",
+    "status": "ok",
+    "bytes": 4317994,
+    "sha256": "7ced2e3a4fb6ea456f130f25fec2f7ccaff40fe47b56fdbf5eefd846b2bec1ee",
+    "elapsed_seconds": 2.51
+  }
+}

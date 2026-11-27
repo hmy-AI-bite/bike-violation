@@ -1,0 +1,160 @@
+"""Build the saved-paper/model comparison and append its evidence to the report."""
+from pathlib import Path
+import difflib
+import hashlib
+import json
+import shutil
+import zipfile
+
+ROOT=Path(__file__).resolve().parents[2]
+COMPARISON=ROOT/'runs/parts_comparison_20261127_v2'
+MODEL_DIRS={'partglee':ROOT/'runs/parts_partglee_20261127_v1','vlpart':ROOT/'runs/parts_vlpart_20261127_v2'}
+
+
+def dump(path,value):
+    Path(path).write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+
+def main():
+    summary=json.loads((COMPARISON/'summary.json').read_text(encoding='utf-8'))
+    models={k:json.loads((v/'summary.json').read_text(encoding='utf-8')) for k,v in MODEL_DIRS.items()}
+    wheels=json.loads((COMPARISON/'wheel_candidates.json').read_text(encoding='utf-8'))
+    vehicle_candidates=json.loads((COMPARISON/'vehicle_candidates.json').read_text(encoding='utf-8'))
+    baseline=json.loads((ROOT/'runs/contact_eval_20261127_v1/results.json').read_text(encoding='utf-8'))
+    center=json.loads((ROOT/'runs/center_prompt_20261127_v2/summary.json').read_text(encoding='utf-8'))['metrics']['center_prompt']
+    assert models['partglee']['images']==models['vlpart']['images']==5
+    assert summary['objects']==157 and center['tp']==7 and center['fp']==5
+    assert all(json.loads((v/'checkpoint_load.json').read_text(encoding='utf-8'))['missing_parameter_count']==0 for v in MODEL_DIRS.values())
+    patches=[];patch_text=[]
+    paths=[('PartGLEE-master','projects/PartGLEE/partglee/models/pixel_decoder/ops/functions/ms_deform_attn_func.py'),
+           ('VLPart-main','vlpart/modeling/roi_heads/fast_rcnn_vlm.py'),
+           ('VLPart-main','vlpart/modeling/meta_arch/vlm_rcnn.py')]
+    for folder,relative in paths:
+        archive=ROOT/'experiments/vendor'/(folder+'.zip')
+        source=ROOT/'experiments/vendor'/folder/relative
+        with zipfile.ZipFile(archive) as z:
+            original=z.read(folder+'/'+relative)
+        current=source.read_bytes()
+        patches.append(dict(file=str(source.relative_to(ROOT)),original_sha256=hashlib.sha256(original).hexdigest(),
+                            current_sha256=hashlib.sha256(current).hexdigest()))
+        patch_text+=list(difflib.unified_diff(original.decode('utf-8').splitlines(True),current.decode('utf-8').splitlines(True),
+                                            fromfile=folder+'/'+relative+' (original)',tofile=folder+'/'+relative+' (local)'))
+    dump(COMPARISON/'port_manifest.json',patches)
+    (COMPARISON/'port_changes.patch').write_text(''.join(patch_text),encoding='utf-8')
+    shutil.copy2(Path(__file__),COMPARISON/'build_part_report_source.py')
+    lines=['# 部件定位与车辆关联实验报告','',
+           '2026-11-27。两篇论文、两个 RN50 权重已保存，PartGLEE 与 VLPart 均已完成 5 张校园图的 GPU 推理。本轮没有新增标注、没有训练模型，也没有更换默认检测程序。',
+           '',
+           '**结论：当前预训练模型加本轮局部判定与关联规则，尚不能替换已有方案。** PartGLEE 的高置信度车轮候选覆盖不足；VLPart 候选更多，但部分将车群或车身误当车轮。现有倒车漏报未补上。减少误报但同时几乎不再产生可用候选，不算改善。',
+           '', '## 一 保存的论文与模型','',
+           '| 项目 | 本地资产 | 验证 |','|---|---|---|',
+           '| PartGLEE，ECCV 2024 | [论文 PDF](papers/07_2024_PartGLEE.pdf)；RN50 权重位于 experiments/model_cache/parts/PartGLEE_RN50.pth | arXiv 版本 38 页，含补充材料；权重 831,794,672 字节 |',
+           '| VLPart，ICCV 2023 | [论文 PDF](papers/08_2023_VLPart.pdf)；RN50 Pascal Part 权重位于 experiments/model_cache/parts/r50_pascalpart.pth | CVF 版本 13 页，含补充材料；权重 184,983,381 字节 |','',
+           '下载来源、文件大小和 SHA-256 记录在 [论文清单](papers/download_manifest.json)与[模型资源清单](../experiments/20261127/part_model_resources.json)。PartGLEE 的 ECVA 下载端点连接失败后改用 arXiv；两份 PDF 均已检查文件头、页数和首屏渲染。官方源码 ZIP 保留，局部兼容修改另有 diff。',
+           '', '## 二 实验问题与控制条件','',
+           '任务是找出越界部位并指出所属车辆，不要求每辆车都获得完整掩膜。轮廓粘连本身不计任务失败；它导致局部证据错误或认错车时才影响结果。',
+           '',
+           '沿用同一批 5 图、157 辆人工框、停车状态及人工停车区域。144 辆合规、7 辆出界、1 辆压线，共 152 辆人工状态明确；5 辆人工无法判定只保留输出。当前框和停车状态已核对与快照一致；接地点记录不参与本次推理或计分。',
+           '',
+           '两个部件模型均为整图推理：输出坐标统一到与旧实验相同的 1400×1900 上限缩略图；网络输入采用短边 800、长边上限 1333，RGB、float32。保留 bicycle:wheel 且分数≥0.5 的输出。PartGLEE 使用 Pascal joint 113 类，VLPart 使用 Pascal Part 93 类。阈值相同不代表两模型分数已校准；候选数量不能当作召回率或准确率。',
+           '',
+           '旧 SAM 基线使用人工框作为分割提示；部件模型未用人工框提示识别，人工框只在后续关联审计中使用。因此本轮是模块可用性与任务候选的开发对照，不是严格仅替换同一分割模块的论文性能复现。',
+           '', '## 三 车轮候选输出','',
+           '| 图片 | 人工车辆数 | PartGLEE 车轮候选 | VLPart 车轮候选 |','|---|---:|---:|---:|']
+    for r in summary['per_image']:
+        lines.append(f"| {r['image']} | {r['vehicles']} | {r['partglee']['wheels']} | {r['vlpart']['wheels']} |")
+    lines += [f"| 合计 | 157 | {summary['wheel_totals']['partglee']} | {summary['wheel_totals']['vlpart']} |",'',
+              '这些是分数达到门槛的输出实例数，包含错误、重复和不完整部件，不是已经确认的真实轮胎数。没有车轮框/掩膜真值，不能报告其检测 AP、召回率或像素 IoU。',
+              '', '## 四 越界候选与车辆关联对照','',
+              '先固定两种诊断规则，再全量计分，未按标签搜索阈值：整轮规则取车轮掩膜在线外比例>2%；局部下缘规则取每个车轮自身最低 2% 薄层，薄层在线外比例>10%。这些是工程对照，不是原论文的停车判据；尤其整轮投影越线不能直接等同真实地面越界。',
+              '',
+              '共同关联规则：至少 80% 车轮像素落在某个人工车辆框中，且对第二名有至少 20 个百分点优势，才关联到该框。多个框同样覆盖时保留未关联，不分给最近中心。该规则有意保守，也会受部分车辆框没有包全车轮影响，不能把关联失败都归因于部件模型。没有关联或没有越界候选不输出合规。',
+              '',
+              '| 方案 | 8 辆已知违停中产生报警/候选的车辆 | 144 辆合规中误报/误候选车辆 | 已知违停中未产生候选 |','|---|---:|---:|---:|',
+              '| 原最低条带（已有最终状态） | 7 | 6 | 1 |',
+              '| 原规则加自动中心点（已有最终状态） | 7 | 5 | 1 |']
+    for name,title in [('partglee','PartGLEE'),('vlpart','VLPart')]:
+        for key,rule in [('whole_candidate','整轮'),('lower_candidate','车轮局部下缘')]:
+            m=summary['common_association'][name][key]
+            lines.append(f"| {title} + {rule} + 共同关联（候选） | {m['hit']} | {m['false_candidate']} | {m['without_candidate']} |")
+    lines += ['',
+              '**候选方法尚未实现完整停车状态分类，表中不能把未产生候选当作正确合规。** 分母仍保留全部 8 个已知违停和 144 个合规，未因遮挡、缺轮或关联失败缩小。5 辆人工无法判定中，VLPart 的两种规则各给出 2 辆候选，未计为正确或误报。',
+              '',
+              f"共同规则仅将 {summary['associated_wheel_totals']['partglee']}/20 个 PartGLEE 候选、{summary['associated_wheel_totals']['vlpart']}/133 个 VLPart 候选关联到车辆框；在 152 辆状态明确车辆中，分别只有 10 辆、30 辆至少有一个关联车轮。它们是关联覆盖统计，不是关联准确率。",'',
+              'PartGLEE 另导出了 Q-Former 的物体查询—部件查询关系。作者常规后处理不保留该索引，本轮只附加导出字段，不改变预测。父查询需为 bicycle、分数≥0.5，再以父车辆框与人工框 IoU≥0.5、领先第二名≥0.1 匹配；只有 4 个车轮/4 辆已知状态车辆通过，整轮规则产生 1 辆合规误候选，局部下缘规则没有产生候选，已知违停均未覆盖。查询生成关系不等于真实归属，不能称为已经找对车。',
+              '', '## 五 同位置可视化与实际失败','',
+              '四栏依次为原图、旧 SAM 掩膜和紫色最低条带、PartGLEE 全部车轮候选、VLPart 全部车轮候选。黄色框是当前核查的人工车辆，蓝线是人工停车边界；绿色为模型部件候选，红色仅为候选在线外的图像投影。绿色局部可能属于邻车，不能由显示位置直接认定所属车辆。',
+              '',
+              'A_1_005 / 21：旧方案的倒车漏报。两部件模型均未将该倒车的关键车轮识别成可用候选，不能用上方邻车轮子的红色区域冒充证据。',
+              '', '![倒车漏报的四栏对照](../runs/parts_comparison_20261127_v2/cases/A_1_005_021.jpg)',
+              '',
+              'A_1_040 / 28：PartGLEE 未输出该局部车轮；VLPart 在附近产生了覆盖多辆车的大掩膜并分类为车轮，这既不证明轮胎定位正确，也不支持确定所属车辆。用户关于本图倒车后轮越界的说明仍保留到图片级，不擅自认定具体编号。',
+              '', '![密集边界目标的四栏对照](../runs/parts_comparison_20261127_v2/cases/A_1_040_028.jpg)',
+              '',
+              'VLPart 局部下缘加共同关联唯一命中的已知违停是 A_2_006 / 23，旧方法原本已经报警；新方案没有补上旧漏报。其合规误候选是 A_3_001 / 14。',
+              '', '![一个已有违停目标的局部对照](../runs/parts_comparison_20261127_v2/cases/A_2_006_023.jpg)',
+              '',
+              '整图示例可查看 [PartGLEE A_1_005](../runs/parts_partglee_20261127_v1/previews/A_1_005.jpg)、[VLPart A_1_005](../runs/parts_vlpart_20261127_v2/previews/A_1_005.jpg)、[VLPart A_1_040](../runs/parts_vlpart_20261127_v2/previews/A_1_040.jpg)。这些对照既保留相对容易识别的轮子，也展示漏掉的远处目标和错误的大块车轮候选。',
+              '', '## 六 运行环境与兼容处理','',
+              '独立环境位于 experiments/.venv-parts，复用现有 PyTorch 2.11.0+cu128 与 RTX 5070，新增依赖只装在该环境；没有改动现有 SAM 环境。两个模型全部可训练参数均从官方检查点加载，没有缺失参数以随机值参加推理。PartGLEE 检查点内的训练教师编码器未用于当前学生推理，相关多余键保留在加载记录中。',
+              '',
+              '本机没有 nvcc/C++ 编译器。PartGLEE 使用作者已经提供的 grid_sample 参考实现：只解除缺少 CUDA 扩展时的导入阻断，调用方原有回退路径不变。该实现足够进行本轮推理，但没有与编译扩展逐像素对照，不声称与论文推理实现完全一致，也不使用它比较部署 FPS。CLIP 文本编码器直接从同一官方检查点提取，无新增随机语言权重。',
+              '',
+              'VLPart 使用 PartGLEE 随附的 Detectron2。只移除了未使用的训练函数导入与标准 FPN 不支持的空额外 padding 参数；补充了 device-only 迁移函数兼容别名、Pillow 旧常量，并清理了重复数据集注册。未改变网络权重、损失或 NMS 阈值。完整源码 ZIP、兼容 diff 与版本均留档；这不是作者标准环境上的原样复现。',
+              '', '| 项目 | PartGLEE RN50 | VLPart RN50 |','|---|---:|---:|',
+              f"| PyTorch 峰值已分配显存 GiB | {models['partglee']['peak_allocated_gib']} | {models['vlpart']['peak_allocated_gib']} |",'',
+              '首图含 CUDA 首次初始化，后续图的耗时也受输入与后处理影响；本轮不据此比较模型速度。VLPart v1 在加载成功后因接口兼容问题未完成图像推理，修复后 v2 完成 5 图。PartGLEE v1 完成 5 图，未覆盖旧结果。',
+              '', '## 七 验证与结论','',
+              '已完成 5 个有针对性的测试：重叠车辆不强行归属、图外框不会发生负索引回绕、IoU/领先幅度边界、没有候选的违停保留分母，以及查询关系导出保持原预测不变。论文、源码、检查点与原图均有 SHA-256；模型实际输出、掩膜和输入配置完整保存。',
+              '',
+              '现有数据没有部件掩膜或部件—车辆归属真值。本轮可以量化“按本实验关联规则产生的候选是否落到已标违停车辆”，不能量化真实部件分割精度或真实关联准确率。所有 5 图已参与开发，不能当独立测试集。',
+              '',
+              '因此保留现有默认方法，自动中心点仍只作为可选项。这轮论文模型未带来任务改善，也未解决倒车。后续若继续部件路线，先验证利用现有车辆框自动裁剪并保留标线上下文，能否减少远处小轮胎遗漏与整片车群被分类为车轮；不新增用户标注，也不在这 5 张图上反复调阈值后宣称泛化提升。',
+              '', '## 八 证据与复现','',
+              '- [逐车候选对照 CSV](../runs/parts_comparison_20261127_v2/vehicle_candidates.csv)',
+              '- [逐车轮几何与关联 CSV](../runs/parts_comparison_20261127_v2/wheel_candidates.csv)',
+              '- [候选统计与分母](../runs/parts_comparison_20261127_v2/summary.json)',
+              '- [PartGLEE 原始输出](../runs/parts_partglee_20261127_v1/results.json)',
+              '- [VLPart 原始输出](../runs/parts_vlpart_20261127_v2/results.json)',
+              '- [源码兼容修改 diff](../runs/parts_comparison_20261127_v2/port_changes.patch)',
+              '', '```powershell',
+              '# 使用新的输出目录，不覆盖已完成的实验',
+              'experiments/.venv-parts/Scripts/python.exe experiments/20261127/run_part_inference.py --model partglee --out runs/parts_partglee_recheck',
+              'experiments/.venv-parts/Scripts/python.exe experiments/20261127/run_part_inference.py --model vlpart --out runs/parts_vlpart_recheck',
+              'experiments/.venv-parts/Scripts/python.exe tools/test_part_models.py',
+              '```','',
+              '当前 compare_part_models.py 的输入明确固定为本轮两个已完成目录，避免不知不觉换掉比较对象。所有推理脚本和分析脚本均在输出目录保留执行时的源码快照。']
+    target=ROOT/'docs/实验报告_部件定位与车辆关联_2026-11-27.md'
+    target.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    supplement=[{'h1':'十 2026年11月27日部件定位与车辆关联实验'},
+        {'p':'目标进一步明确为定位越界部位并指出所属车辆，不要求整车掩膜完全分开。本轮保存 PartGLEE 与 VLPart 论文及 RN50 权重，在现有 5 图、157 辆上完成整图 GPU 推理，没有新增标注或训练。'},
+        {'table':{'header':['项目','PartGLEE RN50','VLPart RN50'],
+          'rows':[['分数达到0.5的车轮候选','20','133'],['共同规则关联成功的候选数','12','50'],
+                  ['局部下缘候选命中已知违停车辆','0/8','1/8'],['144辆合规中的误候选','0','1']]}},
+        {'p':'这些是候选生成与探索性关联结果，不是完整违停模型精度。部件模型没有使用人工框提示，旧 SAM 基线使用人工框提示，因此不是仅替换同一模块的严格模型排名。没有候选不能算合规，未覆盖的违停仍保留在分母。'},
+        {'p':'原最低条带仍为检出7/8、合规误报6辆；自动中心点候选为检出7/8、误报5辆。本轮 PartGLEE 漏掉多个关键局部，VLPart 存在将车群分类为车轮的输出；倒车漏报未找回。默认方案保持不变，不要求用户重复标注。'},
+        {'p':'论文已保存为 docs/papers/07_2024_PartGLEE.pdf、08_2023_VLPart.pdf，下载来源与 SHA-256 见 download_manifest.json。完整条件、兼容修改、逐车表和14张四栏对照图见 docs/实验报告_部件定位与车辆关联_2026-11-27.md。'},
+        {'img':['runs/parts_comparison_20261127_v2/cases/A_1_005_021.jpg','图 5 倒车漏报在原方法与两种部件模型中的同位置对照',16.0]}]
+    dump(ROOT/'docs/part_experiment_section_20261127.json',supplement)
+    # Preserve existing Markdown edits. Append only the dated new section.
+    main_report=ROOT/'docs/实验报告_阶段一.md'
+    content=main_report.read_text(encoding='utf-8')
+    marker='## 十 2026年11月27日部件定位与车辆关联实验'
+    content=content.split(marker)[0].rstrip()+'\n\n'
+    appendix=[marker,'']
+    for block in supplement[1:]:
+        if 'p' in block:
+            appendix += [block['p'],'']
+        elif 'table' in block:
+            t=block['table'];appendix += ['| '+' | '.join(t['header'])+' |','|'+'|'.join(['---']*len(t['header']))+'|']
+            appendix += ['| '+' | '.join(row)+' |' for row in t['rows']]+['']
+        elif 'img' in block:
+            appendix += ['![图 5 倒车漏报对照](../runs/parts_comparison_20261127_v2/cases/A_1_005_021.jpg)','']
+    appendix += ['完整记录：[部件定位与车辆关联实验报告](实验报告_部件定位与车辆关联_2026-11-27.md)。','']
+    main_report.write_text(content+'\n'.join(appendix),encoding='utf-8')
+    print('REPORT',target)
+    print('MAIN_REPORT_APPENDIX',main_report)
+
+
+if __name__=='__main__':
+    main()
