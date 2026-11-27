@@ -67,3 +67,7 @@ review.html
 *.pptx
 *.xls
 *.xlsx
+
+# ---- 外部仓库快照：不属于本仓库，仅本地留存 ----
+bike-violation/
+copilot-worktrees/
