@@ -1,0 +1,74 @@
+[
+  {
+    "file": "01_2025_Road_User_Ground_Contact_Keypoints.pdf",
+    "source": "https://mdpi-res.com/d_attachment/electronics/electronics-14-01291/article_deploy/electronics-14-01291.pdf",
+    "status": "ok",
+    "bytes": 27495315,
+    "pages": 20,
+    "sha256": "06a4426201973f902c81c497cfce51ab456e14abd1aa3b9be45f9c94459cec55",
+    "preview": "Academic Editors: Nikolay Hinov,\nOgnyan Nakov and Milena Lazarova\nReceived: 22 January 2025\nRevised: 14 March 2025\nAccepted: 24 March 2025\nPublished: 25 March 2025\nCitation: Kim, G.; Yoo, J.H.; Jung,\nH.G.; Suhr, J.K. Precise Position\nEstimation of Road Users by\nExtracting Object-Specific Key Points\nfor Embedded Edge Cameras.\nElectronics 2025, 14, 1291. https://\ndoi.org/10.3390/electronics14071291\nCopyright: © 2025 by the authors.\nLicensee MDPI, Basel, Switzerland.\nThis article is an open access article\ndistributed under the terms and\nconditions of the Creative Commons\nAttribution (CC BY) licen"
+  },
+  {
+    "file": "02_2019_DMPR-PS.pdf",
+    "source": "https://raw.githubusercontent.com/Teoge/DMPR-PS/master/DMPR-PS.pdf",
+    "status": "ok",
+    "bytes": 456017,
+    "pages": 6,
+    "sha256": "6e1b8c50999da09dd0b7f60a9cceb55a32591d2ed01c83617434a3933b6c4755",
+    "preview": "DMPR-PS: A NOVEL APPROACH FOR PARKING-SLOT DETECTION USING\nDIRECTIONAL MARKING-POINT REGRESSION\nJunhao Huang1, Lin Zhang 1,∗, Ying Shen1,∗, Huijuan Zhang 1, Shengjie Zhao 1, Yukai Yang2\n1School of Software Engineering, Tongji University, Shanghai, China\n2Department of Statistics, Uppsala University, Uppsala, Sweden\nABSTRACT\nThe self-parking system plays an important role in au-\ntonomous driving, and one of its critical issues is parking-slot\ndetection. Previous studies in this ﬁeld are mostly based on\noff-the-shelf models designed for universal purposes, which\nhave various limitations in solvi"
+  },
+  {
+    "file": "03_2023_HPS-Net_Polygon_Representations.pdf",
+    "source": "https://arxiv.org/pdf/2310.11629",
+    "status": "ok",
+    "bytes": 4637431,
+    "pages": 7,
+    "sha256": "71749c236ff349c117f942753baa990c79f6f8bc5a0d978a8f549152e92fde42",
+    "preview": "Holistic Parking Slot Detection with Polygon-Shaped Representations\nLihao Wang1, Antonyo Musabini 2, Christel Leonet 2, Rachid Benmokhtar 2,\nAmaury Breheret 3, Chaima Yedes 2, Fabian B ¨urger2, Thomas Boulay 2 and Xavier Perrotton 2\nAbstract— Current parking slot detection in advanced driver-\nassistance systems (ADAS) primarily relies on ultrasonic sen-\nsors. This method has several limitations such as the need to\nscan the entire parking slot before detecting it, the incapacity of\ndetecting multiple slots in a row, and the difficulty of classifying\nthem. Due to the complex visual environment, "
+  },
+  {
+    "file": "04_2021_Attentional_GNN_Parking_Slot.pdf",
+    "source": "https://arxiv.org/pdf/2104.02576",
+    "status": "ok",
+    "bytes": 1525930,
+    "pages": 6,
+    "sha256": "14f69646648c016b594d4f387a750270a01cd46f0d2e22f71ff8f221220e9740",
+    "preview": "1\nAttentional Graph Neural Network for Parking-slot\nDetection\nChen Min and Jiaolong Xu ∗ and Liang Xiao and Dawei Zhao and Yiming Nie and Bin Dai\nAbstract—Deep learning has recently demonstrated its promis-\ning performance for vision-based parking-slot detection. How-\never, very few existing methods explicitly take into account\nlearning the link information of the marking-points, resulting\nin complex post-processing and erroneous detection. In this\npaper, we propose an attentional graph neural network based\nparking-slot detection method, which refers the marking-points\nin an around-view image "
+  },
+  {
+    "file": "05_2025_CRPS-D_SS-PSD.pdf",
+    "source": "https://arxiv.org/pdf/2509.13133",
+    "status": "ok",
+    "bytes": 17994570,
+    "pages": 12,
+    "sha256": "1d9040057322b25cb25c13a887ed1a102b0dd1ff4a4766c3bd4ae18b5b51096d",
+    "preview": "JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021 1\nAdvancing Real-World Parking Slot Detection with Large-Scale\nDataset and Semi-Supervised Baseline\nZhihao Zhang, Chunyu Lin,Member, IEEE, Lang Nie, Jiyuan Wang, Yao Zhao,Fellow, IEEE\nAbstract—As automatic parking systems evolve, the accurate\ndetection of parking slots has become increasingly critical. This\nstudy focuses on parking slot detection using surround-view\ncameras, which offer a comprehensive bird’s-eye view of the\nparking environment. However, the current datasets are limited\nin scale, and the scenes they contain are seldom d"
+  },
+  {
+    "file": "06_2019_Shared_Bicycle_Illegal_Parking_YOLOv3.pdf",
+    "source": "https://www.ecice06.com/EN/PDF/10.19678/j.issn.1000-3428.0054915",
+    "status": "ok",
+    "bytes": 2793949,
+    "pages": 6,
+    "sha256": "31f729ebc56b60570554470113b689427a0fa4f1aab150547d5e3e3eccb27313",
+    "preview": "/G21\n/G21/G22\n/G22\n/G23\n/G21\n/G24/G25\n/G23\n/G23\n/G21/G22/G23/G24/G21/G22/G23 /G25/G22/G24/G24/G25 /G23\n/G24 /G25 /G26 /G27 /G28\n/G26/G22/G27/G28/G29/G2A/G2B/G2C/G2D/G2E/G2F/G30/G2E/G2B/G2B/G2C/G30/G2E/G2F/G23/G23 /G25/G26/G24/G27\n/G21\n/G24/G25\n/G22\n/G31/G2B/G32/G2B/G27/G33/G2B/G2C\n/G25/G26/G24/G27\n/G21\n/G37/GB2/G37/G86/G30/G48\n/G21\n/G2E /G2F /G30 /G31\n/G22 /G21/G22/G22/G22/G23/G24/G25/G26/G27/G23/G26/G22/G21/G28/G24/G21/G26/G23/G22/G26/G24/G29/G23/G22/G4A/G2A /G2A /G2A\n/G2E /G32 /G33 /G34 /G35\n/G22 /G2B/G2A /G2A /G2A\n/G36 /G37 /G38 /G39 /G31\n/G22 /G2C/G2D/G24/G28/G21\n/G3A /G3B /G3C /G3D\n/G22\n/"
+  },
+  {
+    "file": "07_2024_PartGLEE.pdf",
+    "source": "https://arxiv.org/pdf/2407.16696",
+    "status": "ok",
+    "bytes": 32681940,
+    "pages": 38,
+    "sha256": "4d1f439253a91ec48cea84c3a1c8f5181ef047f72f6dd7d0b17509fb97649e62",
+    "preview": "PartGLEE: A Foundation Model for Recognizing\nand Parsing Any Objects\nJunyi Li1∗, Junfeng Wu1∗, Weizhi Zhao1, Song Bai2, and Xiang Bai1†\n1 Huazhong University of Science and Technology\n2 ByteDance Inc.\nAbstract. We presen"
+  },
+  {
+    "file": "08_2023_VLPart.pdf",
+    "source": "https://openaccess.thecvf.com/content/ICCV2023/papers/Sun_Going_Denser_with_Open-Vocabulary_Part_Segmentation_ICCV_2023_paper.pdf",
+    "status": "ok",
+    "bytes": 3363357,
+    "pages": 13,
+    "sha256": "59dff4daa74a2644c6baab7ac9ee68b0e32da9a397e9d61c79d6b1b58e15e6e8",
+    "preview": "Going Denser with Open-Vocabulary Part Segmentation\nPeize Sun1 Shoufa Chen1 Chenchen Zhu2 Fanyi Xiao2 Ping Luo1,4 Saining Xie3 Zhicheng Yan2\n1The University of Hong Kong 2Meta AI 3New York University 4Shanghai AI Laborat"
+  }
+]

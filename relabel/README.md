@@ -1,3 +1,5 @@
+> 2026-11-27 路径变更：本页保留旧数据治理过程。实际目录见 [数据目录说明](../docs/数据目录说明.md)；网络精修集现位于 `data/network/used/annotated/bicycle_v2`。
+
 # 自行车检测数据集 v2：预训练模型辅助重标
 
 ## 这次做了什么
@@ -38,7 +40,7 @@ relabel/
 
 ```bash
 pip install labelImg
-labelImg D:\bick\dataset_v2\images\train D:\bick\dataset_v2\labels\train D:\bick\dataset_v2\classes.txt
+labelImg data\network\used\annotated\bicycle_v2\images\train data\network\used\annotated\bicycle_v2\labels\train
 ```
 
 `classes.txt` 内容只有一行 `bicycle`。快捷键：`W` 画框、`A`/`D` 上一张/下一张、`Ctrl+S` 保存。
@@ -48,11 +50,11 @@ labelImg D:\bick\dataset_v2\images\train D:\bick\dataset_v2\labels\train D:\bick
 ## 训练
 
 ```bat
-set PYTHONPATH=D:\bick\yolo-lib
-set YOLO_CONFIG_DIR=D:\bick\relabel\cfg
-set MPLCONFIGDIR=D:\bick\relabel\cfg\mpl
-C:\Users\26803\miniconda3\envs\sam2\python.exe D:\bick\relabel\train.py ^
-   --weights D:\bick\relabel\weights\yolo11s.pt --imgsz 960 --epochs 120 --batch 16
+set PYTHONPATH=%CD%\yolo-lib
+set YOLO_CONFIG_DIR=%CD%\relabel\cfg
+set MPLCONFIGDIR=%CD%\relabel\cfg\mpl
+python relabel\train.py ^
+   --weights relabel\weights\yolo11s.pt --imgsz 960 --epochs 120 --batch 16
 ```
 
 先跑通再调参：`--epochs 30` 看 mAP 曲线是否正常上升。

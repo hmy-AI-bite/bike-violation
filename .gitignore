@@ -59,7 +59,11 @@ review.html
 *.npy
 *.npz
 
-# ---- 例外：仅 docs/images 下的界面截图进 git ----
-!docs/images/
-!docs/images/*.jpg
-!docs/images/*.png
+# ---- 文档类二进制：论文 PDF、Word、演示文稿一律不入库 ----
+# 论文原文可用 docs/papers/README.md 里的来源链接重新下载；
+# 标注规范、实验报告等 Word/PDF 含真实校园照片，只保留在本地。
+*.pdf
+*.docx
+*.pptx
+*.xls
+*.xlsx
