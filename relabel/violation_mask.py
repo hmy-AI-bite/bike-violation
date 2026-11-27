@@ -11,26 +11,30 @@
 用法:
     python violation_mask.py --source <图片目录> --scenes scenes.json --scene school_row
 """
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import argparse
 import csv
 import json
 import os
-import sys
-from pathlib import Path
 
-sys.path.insert(0, r"D:\CV-Datatext-Pipeline\sam2-repo")
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "yolo-lib"))
+ROOT = config.ROOT
 
 from violation_rules import (BAD_VERDICTS, bicycle_class_id, classify_mask,
                              count_verdicts, resolve_zones)
+from sam_prompts import center_point_prompt
 
 import numpy as np  # noqa: E402
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 from scipy import ndimage  # noqa: E402
 
-CKPT = r"D:\CV-Datatext-Pipeline\models\sam2\sam2.1_hiera_tiny.pt"
-CFG = "configs/sam2.1/sam2.1_hiera_t.yaml"
+CKPT = str(config.SAM2_CHECKPOINT)
+CFG = config.SAM2_CONFIG
 
 GREEN = (0, 210, 90)
 YELLOW = (255, 190, 0)
@@ -53,8 +57,8 @@ def main():
     ap.add_argument("--source", required=True)
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--scene", default="default")
-    ap.add_argument("--out", default=str(ROOT / "violation_mask_out"))
-    ap.add_argument("--weights", default=str(ROOT / "relabel/weights/yolo11x.pt"))
+    ap.add_argument("--out", default=config.output_path('violation_mask_out'))
+    ap.add_argument("--weights", default=str(Path(config.weight_path('yolo11x.pt'))))
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--conf", type=float, default=0.35)
     ap.add_argument("--iou", type=float, default=0.45)
@@ -70,6 +74,8 @@ def main():
     ap.add_argument("--min-mask-area", type=int, default=200)
     ap.add_argument("--min-mask-score", type=float, default=0.0,
                     help="SAM 质量分数下限；不是违停概率，需用验证集选阈值")
+    ap.add_argument("--sam-center-point", action="store_true",
+                    help="实验：车辆框自动增加中心前景点；不是接地点预测，默认关闭")
     args = ap.parse_args()
     if not 0 < args.contact_ratio <= 1 or args.min_mask_area < 1:
         ap.error("contact-ratio 必须在 (0, 1] 内，min-mask-area 必须为正数")
@@ -97,7 +103,7 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
     try:
-        font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttc", 30)
+        font = config.load_font(30)
     except Exception:
         font = ImageFont.load_default()
 
@@ -148,7 +154,8 @@ def main():
             score = -1.0
             m = np.zeros((H, W), dtype=bool)
             if has_zone:
-                masks, scores, _ = pred.predict(box=b, multimask_output=False)
+                prompt = center_point_prompt(b, W, H) if args.sam_center_point else {}
+                masks, scores, _ = pred.predict(box=b, multimask_output=False, **prompt)
                 m = np.asarray(masks).reshape(-1, H, W)[0] > 0.0
                 score = float(np.asarray(scores).reshape(-1)[0])
             result = classify_mask(
@@ -184,7 +191,8 @@ def main():
                        contact_in=round(result["contact_in"], 3),
                        deny=round(result["deny"], 3),
                        box_out=round(float(box_out), 3), box_rule=box_rule,
-                       score=round(score, 3), reason=result["reason"])
+                       score=round(score, 3), reason=result["reason"],
+                       sam_prompt="box_center" if args.sam_center_point else "box")
             rows.append(row)
             image_rows.append(row)
             if verdict in ("无法判定", "未标定"):
@@ -211,7 +219,7 @@ def main():
     with open(os.path.join(args.out, "per_bike.csv"), "w",
               encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["image", "bike", "verdict", "contact_in",
-                                        "deny", "box_out", "box_rule", "score", "reason"])
+                                        "deny", "box_out", "box_rule", "score", "reason", "sam_prompt"])
         w.writeheader()
         w.writerows(rows)
 

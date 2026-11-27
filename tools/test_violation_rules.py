@@ -1,18 +1,21 @@
 """CPU 回归测试；不加载真实 YOLO/SAM 权重，不修改项目数据。"""
+
+from pathlib import Path
+import sys
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "config.py").is_file())))
+import config
+config.activate()
+
 import contextlib
 import csv
 import io
 import json
-from pathlib import Path
-import sys
 import tempfile
 import types
 import unittest
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "yolo-lib"))
-sys.path.insert(0, str(ROOT / "relabel"))
+ROOT = config.ROOT
 
 import numpy as np
 from PIL import Image
@@ -105,7 +108,7 @@ class RuleTests(unittest.TestCase):
 
 
 class PipelineTests(unittest.TestCase):
-    def exercise(self, *, allow=POLY, detections=2):
+    def exercise(self, *, allow=POLY, detections=2, center_point=False):
         class Tensor:
             def __init__(self, array):
                 self.array = array
@@ -134,6 +137,11 @@ class PipelineTests(unittest.TestCase):
                 calls["masks"] += 1
                 mask = np.zeros((20, 20), bool)
                 x1, y1, x2, y2 = map(int, box)
+                self_test.assertEqual("point_coords" in kwargs, center_point)
+                self_test.assertEqual("point_labels" in kwargs, center_point)
+                if center_point:
+                    np.testing.assert_allclose(kwargs["point_coords"], [[(x1+x2)/2,(y1+y2)/2]])
+                    np.testing.assert_array_equal(kwargs["point_labels"], [1])
                 mask[y1:y2, x1:x2] = True
                 return mask[None], np.array([0.9]), None
         self_test = self
@@ -151,6 +159,8 @@ class PipelineTests(unittest.TestCase):
             argv = ["violation_mask.py", "--source", str(base / "input.png"),
                     "--scenes", str(base / "scenes.json"), "--scene", "s",
                     "--out", str(out), "--min-mask-area", "5"]
+            if center_point:
+                argv.append("--sam-center-point")
             output = io.StringIO()
             with patch.dict(sys.modules, modules), patch.object(sys, "argv", argv), contextlib.redirect_stdout(output):
                 violation_mask.main()
@@ -166,6 +176,12 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("合规 1 / 违停 0 / 无法判定 1 / 检测 2", output)
         self.assertNotIn("框的误报", output)
         self.assertEqual(calls["masks"], 2)
+        self.assertTrue(all(r["sam_prompt"]=="box" for r in rows))
+
+    def test_experimental_center_prompt_reaches_sam_and_csv(self):
+        rows,calls,_=self.exercise(center_point=True)
+        self.assertEqual(calls["masks"],2)
+        self.assertTrue(all(r["sam_prompt"]=="box_center" for r in rows))
 
     def test_no_zone_does_not_run_sam(self):
         rows, calls, _ = self.exercise(allow=[])
@@ -205,7 +221,7 @@ class TrainingTests(unittest.TestCase):
             self.assertEqual(captured["lr0"], 0.002)
             self.assertEqual(captured["workers"], 0)
             self.assertIn("on_fit_epoch_end", captured)
-            self.assertEqual(Path(captured["data"]), ROOT / "dataset_v2/data.yaml")
+            self.assertEqual(Path(captured["data"]), Path(config.data_path('dataset_v2/data.yaml')))
 
 
 if __name__ == "__main__":
